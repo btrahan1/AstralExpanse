@@ -40,6 +40,16 @@ public class BabylonService
         await _jsRuntime.InvokeVoidAsync("AstralEngine.setSelected", id);
     }
 
+    public async Task AttachToParent(string childId, string parentId, float[]? offset = null)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.attachToParent", childId, parentId, offset ?? new float[] { 0, 0, 5 });
+    }
+
+    public async Task DetachFromParent(string childId, float[]? newPosition = null)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.detachFromParent", childId, newPosition);
+    }
+
     public async Task SetCameraTarget(float x, float y, float z)
     {
         await _jsRuntime.InvokeVoidAsync("AstralEngine.setCameraTarget", x, y, z);

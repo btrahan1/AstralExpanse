@@ -220,6 +220,31 @@ window.AstralEngine = {
         });
     },
 
+    attachToParent: function (childId, parentId, offset = [0, 0, 5]) {
+        const child = this.scene.getNodeById(childId);
+        const parent = this.scene.getNodeById(parentId);
+        if (!child || !parent) return;
+
+        child.parent = parent;
+        child.position = new BABYLON.Vector3(offset[0], offset[1], offset[2]);
+        // Reset rotation relative to parent
+        child.rotation = new BABYLON.Vector3(0, 0, 0);
+    },
+
+    detachFromParent: function (childId, newPosition = null) {
+        const child = this.scene.getNodeById(childId);
+        if (!child) return;
+
+        const worldPos = child.absolutePosition.clone();
+        child.parent = null;
+
+        if (newPosition) {
+            child.position = new BABYLON.Vector3(newPosition[0], newPosition[1], newPosition[2]);
+        } else {
+            child.position = worldPos;
+        }
+    },
+
     getModelPosition: function (id) {
         const node = this.scene.getNodeById(id);
         if (!node) return null;

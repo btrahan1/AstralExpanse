@@ -1,0 +1,191 @@
+{
+    "Name": "Titan_Tugboat",
+    "Type": "Ship",
+    "Parts": [
+        {
+            "Id": "heavy_chassis",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                5,
+                4,
+                8
+            ],
+            "ColorHex": "#CC6600",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "industrial_bridge",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                2.5,
+                2
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                3,
+                2,
+                2.5
+            ],
+            "ColorHex": "#333333",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "grapple_arm_L",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                3,
+                0,
+                3
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                4,
+                0.8
+            ],
+            "ColorHex": "#666666",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "grapple_arm_R",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                -3,
+                0,
+                3
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                4,
+                0.8
+            ],
+            "ColorHex": "#666666",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "massive_engine_L",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                2,
+                0,
+                -5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                2.5,
+                3,
+                2.5
+            ],
+            "ColorHex": "#444444",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "massive_engine_R",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                -2,
+                0,
+                -5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                2.5,
+                3,
+                2.5
+            ],
+            "ColorHex": "#444444",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_exhaust_L",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                2,
+                0,
+                -6.5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                2.2,
+                0.5,
+                2.2
+            ],
+            "ColorHex": "#FFCC00",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_exhaust_R",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                -2,
+                0,
+                -6.5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                2.2,
+                0.5,
+                2.2
+            ],
+            "ColorHex": "#FFCC00",
+            "Material": "Glow",
+            "Operation": "Union"
+        }
+    ],
+    "Timeline": []
+}

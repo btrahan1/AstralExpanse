@@ -46,6 +46,8 @@
 </div>
 
 @code {
+    [Parameter] public EventCallback<float[]> OnLocationSelected { get; set; }
+
     private List<RadarEntity> _entities = new();
     private System.Timers.Timer? _timer;
     private const float Scale = 0.12f; // Maps ~800 units to ~100px
@@ -67,6 +69,13 @@
         _timer.Enabled = true;
     }
 
+    public void CenterOn(float x, float z)
+    {
+        _radarCenterX = x;
+        _radarCenterZ = z;
+        StateHasChanged();
+    }
+
     private async Task HandleRadarClick(MouseEventArgs e)
     {
         // 180px is the element width/height. Center is 90,90.
@@ -85,6 +94,7 @@
         _radarCenterX += deltaX;
         _radarCenterZ += deltaZ;
         
+        await OnLocationSelected.InvokeAsync(new float[] { _radarCenterX, 0, _radarCenterZ });
         await BabylonService.SetCameraTarget(_radarCenterX, 0, _radarCenterZ);
         StateHasChanged();
     }
@@ -99,13 +109,15 @@
 
     private float GetSize(string type) => type switch {
         "Station" => 4,
-        "Ship" => 3,
+        "SubStation" => 3,
+        "Ship" => 2,
         "Asteroid" => 1.5f,
         _ => 2
     };
 
     private string GetClass(string type) => type switch {
         "Station" => "station",
+        "SubStation" => "substation",
         "Ship" => "ship",
         "Asteroid" => "asteroid",
         _ => "other"
@@ -197,6 +209,13 @@
         stroke: #4488ff;
         stroke-width: 2;
         filter: drop-shadow(0 0 4px #ffffff);
+    }
+
+    .marker.substation {
+        fill: #C0C0C0;
+        stroke: #4488ff;
+        stroke-width: 1.5;
+        filter: drop-shadow(0 0 3px #C0C0C0);
     }
 
     .marker.ship {

@@ -1,0 +1,129 @@
+@using AstralExpanse.Services
+@inject GameStateService GameState
+
+<div class="station-panel">
+    <h3>Station Command</h3>
+    <div class="station-list">
+        @if (!GameState.Stations.Any())
+        {
+            <div class="empty-stations">No remote stations.</div>
+        }
+        else
+        {
+            @foreach (var stationId in GameState.Stations)
+            {
+                var isSelected = stationId == SelectedStationId;
+                var displayName = stationId == "Ark_Colonization_Station" ? "ARK STATION" : "SUBSTATION " + stationId.Split('_')[^1];
+                <div class="station-item @(isSelected ? "selected" : "")" @onclick="() => SelectStation(stationId)">
+                    <div class="station-info">
+                        <span class="station-name">@displayName</span>
+                        <span class="station-status">Operational</span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? SelectedStationId { get; set; }
+    [Parameter] public EventCallback<string> OnSelectStation { get; set; }
+
+    private async Task SelectStation(string id)
+    {
+        await OnSelectStation.InvokeAsync(id);
+    }
+}
+
+<style>
+    .station-panel {
+        position: fixed;
+        top: 440px; /* Below Fleet Panel (400px height + margin) */
+        right: 20px;
+        width: 280px;
+        max-height: 250px;
+        background: rgba(16, 24, 48, 0.85);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        padding: 15px;
+        color: white;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h3 {
+        margin: 0 0 15px 0;
+        font-weight: 300;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 10px;
+        color: #00ffcc;
+    }
+
+    .station-list {
+        overflow-y: auto;
+        flex-grow: 1;
+        padding-right: 5px;
+    }
+
+    .station-list::-webkit-scrollbar {
+        width: 4px;
+    }
+    .station-list::-webkit-scrollbar-thumb {
+        background: rgba(0, 255, 204, 0.5);
+        border-radius: 4px;
+    }
+
+    .empty-stations {
+        padding: 10px;
+        text-align: center;
+        color: #888;
+        font-style: italic;
+        font-size: 0.8rem;
+    }
+
+    .station-item {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .station-item:hover {
+        background: rgba(0, 255, 204, 0.1);
+        border-color: rgba(0, 255, 204, 0.4);
+    }
+
+    .station-item.selected {
+        background: rgba(0, 255, 204, 0.2);
+        border-color: #00ffcc;
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+    }
+
+    .station-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .station-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .station-status {
+        font-size: 0.7rem;
+        color: #00ffcc;
+        margin-top: 2px;
+    }
+</style>

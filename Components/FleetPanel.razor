@@ -24,13 +24,17 @@
                     <div class="ship-actions">
                         @if (mission != null && mission.State == ShipState.Idle)
                         {
-                            @if (mission.Type == ShipType.Scout)
+                            @if (mission.Type == GameUnitType.ScoutUnit)
                             {
                                 <button class="btn-action scout" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Scout</button>
                             }
-                            else if (mission.Type == ShipType.Fighter)
+                            else if (mission.Type == GameUnitType.FighterUnit)
                             {
                                 <button class="btn-action patrol" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Patrol</button>
+                            }
+                            else if (mission.Type == GameUnitType.TugboatUnit)
+                            {
+                                <button class="btn-action tug" @onclick:stopPropagation="true" @onclick="() => InitiateTow(shipId)">Tow</button>
                             }
                         }
                         else if (mission != null && mission.State != ShipState.Idle && !stopRequested)
@@ -49,6 +53,7 @@
     [Parameter] public EventCallback<string> OnSelectShip { get; set; }
     [Parameter] public EventCallback<string> OnStopMining { get; set; }
     [Parameter] public EventCallback<string> OnStartMission { get; set; }
+    [Parameter] public EventCallback<string> OnInitiateTow { get; set; }
 
     private async Task SelectShip(string id)
     {
@@ -63,6 +68,11 @@
     private async Task StartMission(string id)
     {
         await OnStartMission.InvokeAsync(id);
+    }
+
+    private async Task InitiateTow(string id)
+    {
+        await OnInitiateTow.InvokeAsync(id);
     }
 }
 
@@ -164,6 +174,7 @@
     .ship-status.droppingoff { color: #ff4488; }
     .ship-status.scouting { color: #00ff00; }
     .ship-status.patrolling { color: #ff8800; }
+    .ship-status.towing { color: #ffcc00; }
 
     .btn-stop {
         background: rgba(255, 68, 68, 0.2);
@@ -202,6 +213,12 @@
         border-color: rgba(255, 136, 0, 0.4);
         color: #ff8800;
         background: rgba(255, 136, 0, 0.1);
+    }
+
+    .btn-action.tug {
+        border-color: rgba(255, 204, 0, 0.4);
+        color: #ffcc00;
+        background: rgba(255, 204, 0, 0.1);
     }
 
     .btn-action:hover {

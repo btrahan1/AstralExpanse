@@ -8,7 +8,7 @@
     </div>
     
     <div class="ship-options">
-        <div class="ship-card" @onclick="() => BuildShip(ShipType.Miner, 100)">
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.MinerUnit, 100)">
             <div class="ship-icon miner-icon"></div>
             <div class="ship-details">
                 <span class="ship-title">Venture Miner</span>
@@ -18,7 +18,7 @@
             <button class="btn-build @(GameState.Ore < 100 ? "disabled" : "")">BUILD</button>
         </div>
 
-        <div class="ship-card" @onclick="() => BuildShip(ShipType.Scout, 150)">
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.ScoutUnit, 150)">
             <div class="ship-icon scout-icon"></div>
             <div class="ship-details">
                 <span class="ship-title">Recon Scout</span>
@@ -28,7 +28,7 @@
             <button class="btn-build @(GameState.Ore < 150 ? "disabled" : "")">BUILD</button>
         </div>
 
-        <div class="ship-card" @onclick="() => BuildShip(ShipType.Fighter, 250)">
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.FighterUnit, 250)">
             <div class="ship-icon fighter-icon"></div>
             <div class="ship-details">
                 <span class="ship-title">Apex Fighter</span>
@@ -37,21 +37,41 @@
             </div>
             <button class="btn-build @(GameState.Ore < 250 ? "disabled" : "")">BUILD</button>
         </div>
+
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.TugboatUnit, 300)">
+            <div class="ship-icon tugboat-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Titan Tug</span>
+                <span class="ship-desc">Heavy-lift vessel for repositioning substations.</span>
+                <span class="ship-cost">Cost: 300 Ore</span>
+            </div>
+            <button class="btn-build @(GameState.Ore < 300 ? "disabled" : "")">BUILD</button>
+        </div>
+
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.SubStationUnit, 500)">
+            <div class="ship-icon substation-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Modular SubStation</span>
+                <span class="ship-desc">Deployable hub for remote operations.</span>
+                <span class="ship-cost">Cost: 500 Ore</span>
+            </div>
+            <button class="btn-build @(GameState.Ore < 500 ? "disabled" : "")">BUILD</button>
+        </div>
     </div>
 </div>
 
 @code {
     [Parameter] public bool Show { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
-    [Parameter] public EventCallback<ShipType> OnBuildShip { get; set; }
+    [Parameter] public EventCallback<GameUnitType> OnBuildShip { get; set; }
 
     private async Task Close() => await OnClose.InvokeAsync();
 
-    private async Task BuildShip(ShipType type, int cost)
+    private async Task BuildShip(GameUnitType unitType, int cost)
     {
         if (GameState.Ore >= cost)
         {
-            await OnBuildShip.InvokeAsync(type);
+            await OnBuildShip.InvokeAsync(unitType);
         }
     }
 }
@@ -150,6 +170,8 @@
     .miner-icon { background: linear-gradient(135deg, #CCAA00 0%, #4488ff 100%); }
     .scout-icon { background: linear-gradient(135deg, #00FF00 0%, #4488ff 100%); }
     .fighter-icon { background: linear-gradient(135deg, #FF3300 0%, #4488ff 100%); }
+    .tugboat-icon { background: linear-gradient(135deg, #CC6600 0%, #4488ff 100%); }
+    .substation-icon { background: linear-gradient(135deg, #C0C0C0 0%, #4488ff 100%); }
 
     .ship-details {
         flex: 1;
