@@ -1,0 +1,165 @@
+{
+"Name": "Ark_Colonization_Station",
+"Type": "Station",
+"Parts": [
+{
+"Id": "central_core",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0, 0, 0],
+"Rotation": [0, 0, 0],
+"Scale": [10, 60, 10],
+"ColorHex": "#C0C0C0",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "biodome_glass",
+"ParentId": null,
+"Shape": "Sphere",
+"Position": [0, 30, 0],
+"Rotation": [0, 0, 0],
+"Scale": [40, 25, 40],
+"ColorHex": "#88CCFF",
+"Material": "Glass",
+"Operation": "Union"
+},
+{
+"Id": "biodome_floor",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0, 26, 0],
+"Rotation": [0, 0, 0],
+"Scale": [38, 1, 38],
+"ColorHex": "#228B22",
+"Material": "Rubber",
+"Operation": "Union"
+},
+{
+"Id": "habitation_ring",
+"ParentId": null,
+"Shape": "Torus",
+"Position": [0, 0, 0],
+"Rotation": [0, 0, 0],
+"Scale": [100, 100, 15],
+"ColorHex": "#FFFFFF",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "spoke_x",
+"ParentId": null,
+"Shape": "Box",
+"Position": [0, 0, 0],
+"Rotation": [0, 0, 0],
+"Scale": [100, 4, 4],
+"ColorHex": "#505050",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "spoke_z",
+"ParentId": null,
+"Shape": "Box",
+"Position": [0, 0, 0],
+"Rotation": [0, 90, 0],
+"Scale": [100, 4, 4],
+"ColorHex": "#505050",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "docking_hub_north",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0, -10, 45],
+"Rotation": [90, 0, 0],
+"Scale": [12, 10, 12],
+"ColorHex": "#404040",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "docking_hub_south",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0, -10, -45],
+"Rotation": [90, 0, 0],
+"Scale": [12, 10, 12],
+"ColorHex": "#404040",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "docking_hub_east",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [45, -10, 0],
+"Rotation": [0, 0, 90],
+"Scale": [12, 10, 12],
+"ColorHex": "#404040",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "docking_hub_west",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [-45, -10, 0],
+"Rotation": [0, 0, 90],
+"Scale": [12, 10, 12],
+"ColorHex": "#404040",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "solar_panel_1",
+"ParentId": null,
+"Shape": "Box",
+"Position": [35, 15, 0],
+"Rotation": [10, 0, 0],
+"Scale": [30, 0.5, 10],
+"ColorHex": "#002266",
+"Material": "Glow",
+"Operation": "Union"
+},
+{
+"Id": "solar_panel_2",
+"ParentId": null,
+"Shape": "Box",
+"Position": [-35, 15, 0],
+"Rotation": [10, 0, 0],
+"Scale": [30, 0.5, 10],
+"ColorHex": "#002266",
+"Material": "Glow",
+"Operation": "Union"
+},
+{
+"Id": "reactor_vent",
+"ParentId": null,
+"Shape": "Cone",
+"Position": [0, -32, 0],
+"Rotation": [180, 0, 0],
+"Scale": [15, 8, 15],
+"ColorHex": "#FF5500",
+"Material": "Glow",
+"Operation": "Union"
+}
+],
+"Timeline": [
+{
+"Time": 0.0,
+"Action": "Rotate",
+"TargetId": "habitation_ring",
+"Value": [0, 0, 0],
+"Duration": 0.0
+},
+{
+"Time": 10.0,
+"Action": "Rotate",
+"TargetId": "habitation_ring",
+"Value": [0, 360, 0],
+"Duration": 10.0
+}
+]
+}

@@ -1,0 +1,165 @@
+@using AstralExpanse.Services
+@inject GameStateService GameState
+
+<div class="fleet-panel">
+    <h3>Fleet Command</h3>
+    <div class="ship-list">
+        @if (!GameState.Fleet.Any())
+        {
+            <div class="empty-fleet">No ships active.</div>
+        }
+        else
+        {
+            @foreach (var shipId in GameState.Fleet)
+            {
+                var isSelected = shipId == SelectedShipId;
+                GameState.ActiveMissions.TryGetValue(shipId, out var mission);
+                var status = mission?.State.ToString() ?? "Idle";
+                var stopRequested = mission?.StopRequested ?? false;
+
+                <div class="ship-item @(isSelected ? "selected" : "")" @onclick="() => SelectShip(shipId)">
+                    <div class="ship-info">
+                        <span class="ship-name">Miner @(shipId.Split('_')[2])</span>
+                        <span class="ship-status @status.ToLower()">@status @(stopRequested ? "(Stopping)" : "")</span>
+                    </div>
+                    <div class="ship-actions">
+                        @if (mission != null && mission.State != ShipState.Idle && !stopRequested)
+                        {
+                            <button class="btn-stop" @onclick:stopPropagation="true" @onclick="() => StopMining(shipId)">Stop</button>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string? SelectedShipId { get; set; }
+    [Parameter] public EventCallback<string> OnSelectShip { get; set; }
+    [Parameter] public EventCallback<string> OnStopMining { get; set; }
+
+    private async Task SelectShip(string id)
+    {
+        await OnSelectShip.InvokeAsync(id);
+    }
+
+    private async Task StopMining(string id)
+    {
+        await OnStopMining.InvokeAsync(id);
+    }
+}
+
+<style>
+    .fleet-panel {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 280px;
+        max-height: 400px;
+        background: rgba(16, 24, 48, 0.85);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(68, 136, 255, 0.3);
+        border-radius: 12px;
+        padding: 15px;
+        color: white;
+        z-index: 20;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h3 {
+        margin: 0 0 15px 0;
+        font-weight: 300;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 10px;
+        color: #4488ff;
+    }
+
+    .ship-list {
+        overflow-y: auto;
+        flex-grow: 1;
+        padding-right: 5px;
+    }
+
+    .ship-list::-webkit-scrollbar {
+        width: 4px;
+    }
+    .ship-list::-webkit-scrollbar-thumb {
+        background: rgba(68, 136, 255, 0.5);
+        border-radius: 4px;
+    }
+
+    .empty-fleet {
+        padding: 20px;
+        text-align: center;
+        color: #888;
+        font-style: italic;
+        font-size: 0.8rem;
+    }
+
+    .ship-item {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ship-item:hover {
+        background: rgba(68, 136, 255, 0.15);
+        border-color: rgba(68, 136, 255, 0.4);
+    }
+
+    .ship-item.selected {
+        background: rgba(68, 136, 255, 0.25);
+        border-color: #4488ff;
+        box-shadow: 0 0 10px rgba(68, 136, 255, 0.3);
+    }
+
+    .ship-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ship-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+
+    .ship-status {
+        font-size: 0.7rem;
+        color: #888;
+        margin-top: 2px;
+    }
+
+    .ship-status.mining { color: #00ffcc; }
+    .ship-status.movingtoasteroid { color: #ffcc00; }
+    .ship-status.returningtostation { color: #4488ff; }
+    .ship-status.droppingoff { color: #ff4488; }
+
+    .btn-stop {
+        background: rgba(255, 68, 68, 0.2);
+        border: 1px solid rgba(255, 68, 68, 0.4);
+        color: #ff6666;
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-stop:hover {
+        background: rgba(255, 68, 68, 0.4);
+        color: white;
+    }
+</style>

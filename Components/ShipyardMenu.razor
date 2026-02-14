@@ -1,0 +1,117 @@
+@using AstralExpanse.Services
+@inject GameStateService GameState
+@inject BabylonService BabylonService
+@inject HttpClient Http
+
+<div class="shipyard-menu">
+    <div class="menu-header">
+        <h2>Station Shipyard</h2>
+        <button class="close-btn" @onclick="OnClose">✕</button>
+    </div>
+
+    <div class="resource-display">
+        <span>Available Ore: <strong>@GameState.Ore</strong></span>
+    </div>
+
+    <div class="ship-options">
+        <div class="ship-card">
+            <div class="ship-info">
+                <h3>Venture Miner</h3>
+                <p>Equipped with dual drills for asteroid mining.</p>
+                <span class="cost">Cost: 250 Ore</span>
+            </div>
+            <button class="build-btn" disabled="@(GameState.Ore < 250)" @onclick="BuildMiner">
+                @(_isBuilding ? "Constructing..." : "Build Ship")
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    private bool _isBuilding = false;
+
+    private async Task BuildMiner()
+    {
+        if (GameState.TryBuildShip("Venture Miner", 250))
+        {
+            _isBuilding = true;
+            StateHasChanged();
+
+            // Simulate construction time
+            await Task.Delay(1000);
+
+            var minerJson = await Http.GetStringAsync("assets/miner.json");
+            
+            // Spawn ship at random offset from station
+            Random rng = new();
+            float x = (float)(rng.NextDouble() - 0.5) * 40 + 60;
+            float z = (float)(rng.NextDouble() - 0.5) * 40;
+            
+            var id = await BabylonService.LoadModel(minerJson, new float[] { x, 0, z }, 2.0f);
+            GameState.RegisterShip(id);
+
+            _isBuilding = false;
+            StateHasChanged();
+        }
+    }
+}
+
+<style>
+    .shipyard-menu {
+        position: fixed;
+        right: 40px;
+        top: 100px;
+        width: 350px;
+        background: rgba(10, 15, 30, 0.9);
+        border: 1px solid #4488ff;
+        border-radius: 8px;
+        color: white;
+        padding: 20px;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .menu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #3366cc;
+        padding-bottom: 10px;
+    }
+
+    .menu-header h2 { margin: 0; font-size: 1.2rem; color: #4488ff; text-transform: uppercase; letter-spacing: 2px; }
+
+    .close-btn { background: none; border: none; color: #ff4444; font-size: 1.5rem; cursor: pointer; }
+
+    .resource-display { margin-bottom: 20px; font-size: 0.9rem; }
+    .resource-display strong { color: #00ffcc; }
+
+    .ship-card {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 4px;
+        border: 1px solid rgba(68, 136, 255, 0.2);
+    }
+
+    .ship-info h3 { margin: 0 0 5px 0; font-size: 1rem; }
+    .ship-info p { margin: 0 0 10px 0; font-size: 0.8rem; color: #aaa; }
+    .cost { display: block; font-size: 0.8rem; color: #00ffcc; margin-bottom: 15px; }
+
+    .build-btn {
+        width: 100%;
+        padding: 10px;
+        background: #4488ff;
+        border: none;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+
+    .build-btn:hover:not(:disabled) { background: #3366cc; }
+    .build-btn:disabled { background: #444; cursor: not-allowed; opacity: 0.5; }
+</style>

@@ -1,0 +1,351 @@
+{
+    "Name": "Venture_Mining_Vessel",
+    "Type": "Ship",
+    "Parts": [
+        {
+            "Id": "main_hull",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                3.0,
+                2.5,
+                8.0
+            ],
+            "ColorHex": "#444444",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cockpit_bridge",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                0.8,
+                3.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                2.0,
+                1.2,
+                1.5
+            ],
+            "ColorHex": "#222222",
+            "Material": "Glass",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cargo_pod_left",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                2.3,
+                0,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1.8,
+                2.0,
+                5.0
+            ],
+            "ColorHex": "#CCAA00",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cargo_pod_right",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                -2.3,
+                0,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1.8,
+                2.0,
+                5.0
+            ],
+            "ColorHex": "#CCAA00",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "drill_mount_L",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                1.0,
+                -1.0,
+                4.0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.5,
+                2.0,
+                0.5
+            ],
+            "ColorHex": "#666666",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "drill_head_L",
+            "ParentId": null,
+            "Shape": "Cone",
+            "Position": [
+                1.0,
+                -1.0,
+                5.5
+            ],
+            "Rotation": [
+                -90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                1.5,
+                0.8
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "drill_mount_R",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                -1.0,
+                -1.0,
+                4.0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.5,
+                2.0,
+                0.5
+            ],
+            "ColorHex": "#666666",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "drill_head_R",
+            "ParentId": null,
+            "Shape": "Cone",
+            "Position": [
+                -1.0,
+                -1.0,
+                5.5
+            ],
+            "Rotation": [
+                -90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                1.5,
+                0.8
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_main_housing",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                0,
+                -4.5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                2.5,
+                1.5,
+                2.5
+            ],
+            "ColorHex": "#333333",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_exhaust_glow",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                0,
+                -5.3
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                2.0,
+                0.2,
+                2.0
+            ],
+            "ColorHex": "#00FFFF",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "comms_array",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                1.8,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.1,
+                1.5,
+                0.1
+            ],
+            "ColorHex": "#AAAAAA",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "rcs_thruster_FL",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                1.6,
+                0,
+                3.0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.4,
+                0.4,
+                0.4
+            ],
+            "ColorHex": "#555555",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "rcs_thruster_FR",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                -1.6,
+                0,
+                3.0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.4,
+                0.4,
+                0.4
+            ],
+            "ColorHex": "#555555",
+            "Material": "Metal",
+            "Operation": "Union"
+        }
+    ],
+    "Timeline": [
+        {
+            "Time": 0.0,
+            "Action": "Rotate",
+            "TargetId": "drill_head_L",
+            "Value": [
+                -90,
+                0,
+                0
+            ],
+            "Duration": 0.0
+        },
+        {
+            "Time": 0.0,
+            "Action": "Rotate",
+            "TargetId": "drill_head_R",
+            "Value": [
+                -90,
+                0,
+                0
+            ],
+            "Duration": 0.0
+        },
+        {
+            "Time": 2.0,
+            "Action": "Rotate",
+            "TargetId": "drill_head_L",
+            "Value": [
+                -90,
+                0,
+                360
+            ],
+            "Duration": 2.0
+        },
+        {
+            "Time": 2.0,
+            "Action": "Rotate",
+            "TargetId": "drill_head_R",
+            "Value": [
+                -90,
+                0,
+                -360
+            ],
+            "Duration": 2.0
+        }
+    ]
+}

@@ -1,0 +1,214 @@
+{
+    "Name": "Iron_Rich_Asteroid",
+    "Type": "Asteroid",
+    "Parts": [
+        {
+            "Id": "main_mass",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                15,
+                45,
+                10
+            ],
+            "Scale": [
+                12,
+                10,
+                11
+            ],
+            "ColorHex": "#4A4540",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "protrusion_1",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                5,
+                2,
+                -3
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                6,
+                5,
+                6
+            ],
+            "ColorHex": "#3D3834",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "protrusion_2",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                -4,
+                -3,
+                2
+            ],
+            "Rotation": [
+                10,
+                90,
+                45
+            ],
+            "Scale": [
+                7,
+                6,
+                5
+            ],
+            "ColorHex": "#544E49",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "crater_1",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                2,
+                4.5,
+                4
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                4,
+                3,
+                4
+            ],
+            "ColorHex": "#000000",
+            "Material": "Metal",
+            "Operation": "Subtract"
+        },
+        {
+            "Id": "crater_2",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                -6,
+                0,
+                -4
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                3,
+                2,
+                3
+            ],
+            "ColorHex": "#000000",
+            "Material": "Metal",
+            "Operation": "Subtract"
+        },
+        {
+            "Id": "mineral_vein_alpha",
+            "ParentId": null,
+            "Shape": "Capsule",
+            "Position": [
+                3,
+                -2,
+                5
+            ],
+            "Rotation": [
+                45,
+                30,
+                0
+            ],
+            "Scale": [
+                0.8,
+                6,
+                0.8
+            ],
+            "ColorHex": "#00F0FF",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "mineral_vein_beta",
+            "ParentId": null,
+            "Shape": "Capsule",
+            "Position": [
+                -5,
+                4,
+                0
+            ],
+            "Rotation": [
+                -20,
+                110,
+                10
+            ],
+            "Scale": [
+                0.5,
+                4,
+                0.5
+            ],
+            "ColorHex": "#FFD700",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "surface_boulder",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                5,
+                -2
+            ],
+            "Rotation": [
+                34,
+                12,
+                88
+            ],
+            "Scale": [
+                2,
+                2,
+                2
+            ],
+            "ColorHex": "#2B2825",
+            "Material": "Metal",
+            "Operation": "Union"
+        }
+    ],
+    "Timeline": [
+        {
+            "Time": 0.0,
+            "Action": "Rotate",
+            "TargetId": "main_mass",
+            "Value": [
+                0,
+                0,
+                0
+            ],
+            "Duration": 0.0
+        },
+        {
+            "Time": 20.0,
+            "Action": "Rotate",
+            "TargetId": "main_mass",
+            "Value": [
+                45,
+                360,
+                20
+            ],
+            "Duration": 20.0
+        }
+    ]
+}

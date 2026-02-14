@@ -1,0 +1,30 @@
+# .NET Core
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docuser
+
+# Visual Studio
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docuser
+*.sublime-project
+*.sublime-workspace
+
+# Browser
+.DS_Store
+wwwroot/_framework/
+wwwroot/_content/
+wwwroot/decode.js
+wwwroot/bcl/
+
+# Publishing
+publish/
+
+# OS specific files
+.DS_Store
+Thumbs.db

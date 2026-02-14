@@ -1,0 +1,205 @@
+﻿@page "/"
+@using AstralExpanse.Services
+@using AstralExpanse.Components
+@inject BabylonService BabylonService
+@inject GameStateService GameState
+@inject HttpClient Http
+@implements IDisposable
+
+<PageTitle>Astral Expanse</PageTitle>
+
+<Viewport />
+
+@if (_showShipyard)
+{
+    <ShipyardMenu OnClose="() => _showShipyard = false" />
+}
+
+<MiningMenu Show="_showMiningMenu" X="_mouseX" Y="_mouseY" OnStartMining="StartMiningMission" />
+
+<FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" />
+
+<Radar />
+
+<div class="ui-overlay">
+    <h1>Astral Expanse</h1>
+    <p>Orbiting Ark Colonization Station</p>
+    <div class="stats">
+        <span>Ore: <strong>@GameState.Ore</strong></span> | 
+        <span>Fleet: <strong>@GameState.Fleet.Count</strong></span>
+    </div>
+    @if (!string.IsNullOrEmpty(_selectedShipId))
+    {
+        <div class="selection-info">
+            Selected: <span class="ship-id">Miner @(_selectedShipId.Split('_')[2])</span>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _showShipyard = false;
+    private bool _showMiningMenu = false;
+    private double _mouseX, _mouseY;
+    private string? _selectedShipId;
+    private string? _targetAsteroidId;
+    private float[]? _targetAsteroidPos;
+
+    protected override void OnInitialized()
+    {
+        GameState.OnStateChanged += StateHasChanged;
+        BabylonService.OnObjectClicked += HandleObjectClicked;
+        BabylonService.OnMoveComplete += HandleMoveComplete;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(500);
+            
+            // Load Station
+            var stationJson = await Http.GetStringAsync("assets/station.json");
+            await BabylonService.LoadModel(stationJson);
+
+            // Spawn Asteroid Field
+            var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
+            await BabylonService.SpawnAsteroidField(asteroidJson, 20, 400);
+        }
+    }
+
+    private async void HandleObjectClicked(string name, string id)
+    {
+        _showMiningMenu = false;
+
+        if (name == "Ark_Colonization_Station")
+        {
+            _showShipyard = true;
+            _selectedShipId = null;
+            await BabylonService.SetSelected(null);
+            StateHasChanged();
+        }
+        else if (name == "Venture_Mining_Vessel")
+        {
+            _selectedShipId = id;
+            await BabylonService.SetSelected(id);
+            _showShipyard = false;
+            StateHasChanged();
+        }
+        else if (name == "Iron_Rich_Asteroid" && !string.IsNullOrEmpty(_selectedShipId))
+        {
+            _targetAsteroidId = id;
+            _targetAsteroidPos = await BabylonService.GetModelPosition(id);
+            _mouseX = 400; 
+            _mouseY = 300;
+            _showMiningMenu = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task StartMiningMission()
+    {
+        if (string.IsNullOrEmpty(_selectedShipId) || _targetAsteroidPos == null) return;
+
+        var mission = new ShipMission {
+            ShipId = _selectedShipId,
+            AsteroidId = _targetAsteroidId!,
+            AsteroidPosition = _targetAsteroidPos,
+            State = ShipState.MovingToAsteroid
+        };
+
+        GameState.ActiveMissions[_selectedShipId] = mission;
+        _showMiningMenu = false;
+
+        await BabylonService.MoveModel(_selectedShipId, _targetAsteroidPos, 5.0f);
+    }
+
+    private async void HandleMoveComplete(string id)
+    {
+        if (GameState.ActiveMissions.TryGetValue(id, out var mission))
+        {
+            if (mission.State == ShipState.MovingToAsteroid)
+            {
+                mission.State = ShipState.Mining;
+                StateHasChanged();
+                await Task.Delay(10000); 
+                
+                mission.State = ShipState.ReturningToStation;
+                await BabylonService.MoveModel(id, new float[] { 0, 0, 0 }, 5.0f);
+            }
+            else if (mission.State == ShipState.ReturningToStation)
+            {
+                mission.State = ShipState.DroppingOff;
+                StateHasChanged();
+                await Task.Delay(5000); // Drop off for 5 seconds
+                
+                GameState.AddOre(100);
+                
+                if (mission.StopRequested)
+                {
+                    mission.State = ShipState.Idle;
+                    mission.StopRequested = false;
+                    StateHasChanged();
+                }
+                else
+                {
+                    mission.State = ShipState.MovingToAsteroid;
+                    await BabylonService.MoveModel(id, mission.AsteroidPosition, 5.0f);
+                }
+            }
+        }
+    }
+
+    private async Task HandleSelectShipFromPanel(string id)
+    {
+        _selectedShipId = id;
+        await BabylonService.SetSelected(id);
+        _showShipyard = false;
+        _showMiningMenu = false;
+        StateHasChanged();
+    }
+
+    private void HandleStopMining(string id)
+    {
+        if (GameState.ActiveMissions.TryGetValue(id, out var mission))
+        {
+            mission.StopRequested = true;
+            StateHasChanged();
+        }
+    }
+
+    public void Dispose()
+    {
+        GameState.OnStateChanged -= StateHasChanged;
+        BabylonService.OnObjectClicked -= HandleObjectClicked;
+        BabylonService.OnMoveComplete -= HandleMoveComplete;
+    }
+}
+
+<style>
+    .ui-overlay {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 10;
+        color: white;
+        pointer-events: none;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        text-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+
+    h1 { margin: 0; font-weight: 300; letter-spacing: 4px; text-transform: uppercase; }
+    p { color: #88ccff; font-style: italic; margin: 5px 0; }
+    .stats { font-size: 0.9rem; margin-top: 10px; }
+    .stats strong { color: #00ffcc; }
+
+    .selection-info {
+        margin-top: 15px;
+        font-size: 0.8rem;
+        background: rgba(68, 136, 255, 0.2);
+        padding: 5px 10px;
+        border-radius: 4px;
+        display: inline-block;
+        border: 1px solid rgba(68, 136, 255, 0.4);
+    }
+    .ship-id { color: #4488ff; font-weight: bold; }
+</style>

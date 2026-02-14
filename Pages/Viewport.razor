@@ -1,0 +1,33 @@
+@using AstralExpanse.Services
+@inject BabylonService BabylonService
+@implements IDisposable
+
+<div class="viewport-container">
+    <canvas id="renderCanvas"></canvas>
+</div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await BabylonService.InitializeEngine("renderCanvas");
+        }
+    }
+
+    public void Dispose()
+    {
+        // Cleanup if necessary
+    }
+}
+
+<style>
+    .viewport-container {
+        width: 100vw;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1;
+    }
+</style>
