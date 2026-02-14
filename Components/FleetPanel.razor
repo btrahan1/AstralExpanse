@@ -16,14 +16,24 @@
                 GameState.ActiveMissions.TryGetValue(shipId, out var mission);
                 var status = mission?.State.ToString() ?? "Idle";
                 var stopRequested = mission?.StopRequested ?? false;
-
                 <div class="ship-item @(isSelected ? "selected" : "")" @onclick="() => SelectShip(shipId)">
                     <div class="ship-info">
-                        <span class="ship-name">Miner @(shipId.Split('_')[2])</span>
+                        <span class="ship-name">@(mission?.Type.ToString() ?? "Unit") @(shipId.Split('_')[^1])</span>
                         <span class="ship-status @status.ToLower()">@status @(stopRequested ? "(Stopping)" : "")</span>
                     </div>
                     <div class="ship-actions">
-                        @if (mission != null && mission.State != ShipState.Idle && !stopRequested)
+                        @if (mission != null && mission.State == ShipState.Idle)
+                        {
+                            @if (mission.Type == ShipType.Scout)
+                            {
+                                <button class="btn-action scout" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Scout</button>
+                            }
+                            else if (mission.Type == ShipType.Fighter)
+                            {
+                                <button class="btn-action patrol" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Patrol</button>
+                            }
+                        }
+                        else if (mission != null && mission.State != ShipState.Idle && !stopRequested)
                         {
                             <button class="btn-stop" @onclick:stopPropagation="true" @onclick="() => StopMining(shipId)">Stop</button>
                         }
@@ -38,6 +48,7 @@
     [Parameter] public string? SelectedShipId { get; set; }
     [Parameter] public EventCallback<string> OnSelectShip { get; set; }
     [Parameter] public EventCallback<string> OnStopMining { get; set; }
+    [Parameter] public EventCallback<string> OnStartMission { get; set; }
 
     private async Task SelectShip(string id)
     {
@@ -47,6 +58,11 @@
     private async Task StopMining(string id)
     {
         await OnStopMining.InvokeAsync(id);
+    }
+
+    private async Task StartMission(string id)
+    {
+        await OnStartMission.InvokeAsync(id);
     }
 }
 
@@ -146,6 +162,8 @@
     .ship-status.movingtoasteroid { color: #ffcc00; }
     .ship-status.returningtostation { color: #4488ff; }
     .ship-status.droppingoff { color: #ff4488; }
+    .ship-status.scouting { color: #00ff00; }
+    .ship-status.patrolling { color: #ff8800; }
 
     .btn-stop {
         background: rgba(255, 68, 68, 0.2);
@@ -161,5 +179,32 @@
     .btn-stop:hover {
         background: rgba(255, 68, 68, 0.4);
         color: white;
+    }
+
+    .btn-action {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .btn-action.scout {
+        border-color: rgba(0, 255, 0, 0.4);
+        color: #00ff00;
+        background: rgba(0, 255, 0, 0.1);
+    }
+
+    .btn-action.patrol {
+        border-color: rgba(255, 136, 0, 0.4);
+        color: #ff8800;
+        background: rgba(255, 136, 0, 0.1);
+    }
+
+    .btn-action:hover {
+        background: rgba(255, 255, 255, 0.2);
     }
 </style>

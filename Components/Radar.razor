@@ -4,36 +4,44 @@
 
 <div class="radar-container">
     <div class="radar-frame">
-        <svg viewBox="-105 -105 210 210" class="radar-svg">
-            <!-- Background Rings -->
-            <circle cx="0" cy="0" r="100" class="radar-bg" />
-            <circle cx="0" cy="0" r="75" class="radar-ring" />
-            <circle cx="0" cy="0" r="50" class="radar-ring" />
-            <circle cx="0" cy="0" r="25" class="radar-ring" />
-            
-            <!-- Axis lines -->
-            <line x1="-100" y1="0" x2="100" y2="0" class="radar-line" />
-            <line x1="0" y1="-100" x2="0" y2="100" class="radar-line" />
-
-            <!-- Radar Sweep -->
-            <circle cx="0" cy="0" r="100" class="radar-sweep" />
-
-            <!-- Entities -->
-            @foreach (var entity in _entities)
-            {
-                var x = entity.Pos[0] * Scale;
-                var z = entity.Pos[1] * Scale;
+        <div class="radar-click-surface" @onclick="HandleRadarClick">
+            <svg viewBox="-105 -105 210 210" class="radar-svg">
+                <!-- Background Rings -->
+                <circle cx="0" cy="0" r="100" class="radar-bg" />
+                <circle cx="0" cy="0" r="75" class="radar-ring" />
+                <circle cx="0" cy="0" r="50" class="radar-ring" />
+                <circle cx="0" cy="0" r="25" class="radar-ring" />
                 
-                // Only render if within circular bounds
-                if (Math.Sqrt(x * x + z * z) <= 100)
+                <!-- Axis lines -->
+                <line x1="-100" y1="0" x2="100" y2="0" class="radar-line" />
+                <line x1="0" y1="-100" x2="0" y2="100" class="radar-line" />
+
+                <!-- Radar Sweep -->
+                <circle cx="0" cy="0" r="100" class="radar-sweep" />
+
+                <!-- Entities -->
+                @foreach (var entity in _entities)
                 {
-                    <circle cx="@x" cy="@z" r="@(GetSize(entity.Type))" class="marker @(GetClass(entity.Type).ToLower())">
-                        <title>@entity.Name (@entity.Type)</title>
-                    </circle>
+                    var x = (entity.Pos[0] - _radarCenterX) * Scale;
+                    var z = (entity.Pos[1] - _radarCenterZ) * Scale;
+                    
+                    // Only render if within circular bounds
+                    if (Math.Sqrt(x * x + z * z) <= 100)
+                    {
+                        <circle cx="@x" cy="@z" r="@(GetSize(entity.Type))" class="marker @(GetClass(entity.Type).ToLower())">
+                            <title>@entity.Name (@entity.Type)</title>
+                        </circle>
+                    }
                 }
-            }
-        </svg>
+            </svg>
+        </div>
         <div class="radar-label">TACTICAL RADAR</div>
+        
+        <button class="home-button" @onclick="ResetToHome" title="Reset to Ark Station">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/>
+            </svg>
+        </button>
     </div>
 </div>
 
@@ -41,6 +49,8 @@
     private List<RadarEntity> _entities = new();
     private System.Timers.Timer? _timer;
     private const float Scale = 0.12f; // Maps ~800 units to ~100px
+    private float _radarCenterX = 0;
+    private float _radarCenterZ = 0;
 
     protected override void OnInitialized()
     {
@@ -55,6 +65,36 @@
         };
         _timer.AutoReset = true;
         _timer.Enabled = true;
+    }
+
+    private async Task HandleRadarClick(MouseEventArgs e)
+    {
+        // 180px is the element width/height. Center is 90,90.
+        // viewBox is 210 wide.
+        var relX = e.OffsetX - 90;
+        var relZ = e.OffsetY - 90;
+        
+        var svgX = relX * (210.0 / 180.0);
+        var svgZ = relZ * (210.0 / 180.0);
+        
+        // Calculate the world delta from the current center
+        var deltaX = (float)(svgX / Scale);
+        var deltaZ = (float)(svgZ / Scale);
+        
+        // Update new absolute world coordinates
+        _radarCenterX += deltaX;
+        _radarCenterZ += deltaZ;
+        
+        await BabylonService.SetCameraTarget(_radarCenterX, 0, _radarCenterZ);
+        StateHasChanged();
+    }
+
+    private async Task ResetToHome()
+    {
+        _radarCenterX = 0;
+        _radarCenterZ = 0;
+        await BabylonService.SetCameraTarget(0, 0, 0);
+        StateHasChanged();
     }
 
     private float GetSize(string type) => type switch {
@@ -97,12 +137,22 @@
         padding: 5px;
         backdrop-filter: blur(5px);
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(68, 136, 255, 0.2);
+        pointer-events: auto;
+        cursor: crosshair;
+    }
+
+    .radar-click-surface {
+        width: 100%;
+        height: 100%;
+        pointer-events: auto;
+        cursor: crosshair;
     }
 
     .radar-svg {
         width: 100%;
         height: 100%;
         overflow: visible;
+        pointer-events: none;
     }
 
     .radar-bg {
@@ -139,7 +189,7 @@
 
     .marker {
         stroke-width: 1;
-        pointer-events: auto;
+        pointer-events: none;
     }
 
     .marker.station {
@@ -176,5 +226,35 @@
         text-transform: uppercase;
         font-weight: bold;
         text-shadow: 0 0 5px rgba(0,0,0,0.8);
+    }
+
+    .home-button {
+        position: absolute;
+        top: 0;
+        right: -30px;
+        width: 24px;
+        height: 24px;
+        background: rgba(10, 20, 40, 0.8);
+        border: 1px solid rgba(68, 136, 255, 0.5);
+        border-radius: 4px;
+        color: #4488ff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        pointer-events: auto;
+        transition: all 0.2s;
+        backdrop-filter: blur(5px);
+        padding: 0;
+    }
+
+    .home-button:hover {
+        background: rgba(68, 136, 255, 0.2);
+        color: #ffffff;
+        box-shadow: 0 0 10px rgba(68, 136, 255, 0.4);
+    }
+
+    .home-button svg {
+        pointer-events: none;
     }
 </style>

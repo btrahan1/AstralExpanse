@@ -25,9 +25,9 @@ public class BabylonService
         await _jsRuntime.InvokeVoidAsync("AstralEngine.spawnAsteroidField", jsonContent, count, radius);
     }
 
-    public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null)
+    public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null, string? id = null)
     {
-        return await _jsRuntime.InvokeAsync<string>("AstralEngine.loadProceduralModel", jsonContent, pos ?? new float[] { 0, 0, 0 }, scale, rot ?? new float[] { 0, 0, 0 });
+        return await _jsRuntime.InvokeAsync<string>("AstralEngine.loadProceduralModel", jsonContent, pos ?? new float[] { 0, 0, 0 }, scale, rot ?? new float[] { 0, 0, 0 }, id);
     }
 
     public async Task MoveModel(string id, float[] targetPos, float duration)
@@ -38,6 +38,11 @@ public class BabylonService
     public async Task SetSelected(string? id)
     {
         await _jsRuntime.InvokeVoidAsync("AstralEngine.setSelected", id);
+    }
+
+    public async Task SetCameraTarget(float x, float y, float z)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.setCameraTarget", x, y, z);
     }
 
     public async Task<float[]?> GetModelPosition(string id)

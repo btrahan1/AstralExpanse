@@ -1,0 +1,214 @@
+{
+    "Name": "Apex_Interceptor",
+    "Type": "Ship",
+    "Parts": [
+        {
+            "Id": "core_chassis",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                45
+            ],
+            "Scale": [
+                2.5,
+                2.5,
+                5.0
+            ],
+            "ColorHex": "#333333",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cockpit_canopy",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0.8,
+                1.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1.8,
+                1.2,
+                2.5
+            ],
+            "ColorHex": "#FF3300",
+            "Material": "Glass",
+            "Operation": "Union"
+        },
+        {
+            "Id": "fin_top",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                1.8,
+                -1.0
+            ],
+            "Rotation": [
+                20,
+                0,
+                0
+            ],
+            "Scale": [
+                0.2,
+                2.0,
+                2.5
+            ],
+            "ColorHex": "#CC0000",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "wing_left",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                2.0,
+                -0.5,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                -30
+            ],
+            "Scale": [
+                3.0,
+                0.4,
+                2.0
+            ],
+            "ColorHex": "#444444",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "wing_right",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                -2.0,
+                -0.5,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                30
+            ],
+            "Scale": [
+                3.0,
+                0.4,
+                2.0
+            ],
+            "ColorHex": "#444444",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cannon_L",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                1.8,
+                -0.8,
+                1.0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.3,
+                2.5,
+                0.3
+            ],
+            "ColorHex": "#666666",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cannon_R",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                -1.8,
+                -0.8,
+                1.0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.3,
+                2.5,
+                0.3
+            ],
+            "ColorHex": "#666666",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_nozzle_L",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                1.0,
+                1.0,
+                -2.5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                0.5,
+                0.8
+            ],
+            "ColorHex": "#FF8800",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_nozzle_R",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                -1.0,
+                1.0,
+                -2.5
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                0.5,
+                0.8
+            ],
+            "ColorHex": "#FF8800",
+            "Material": "Glow",
+            "Operation": "Union"
+        }
+    ],
+    "Timeline": []
+}

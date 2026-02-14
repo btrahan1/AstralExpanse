@@ -3,15 +3,19 @@ using System.Collections.Generic;
 
 namespace AstralExpanse.Services;
 
-public enum ShipState { Idle, MovingToAsteroid, Mining, ReturningToStation, DroppingOff }
+public enum ShipType { Miner, Scout, Fighter }
+
+public enum ShipState { Idle, MovingToAsteroid, Mining, ReturningToStation, DroppingOff, Scouting, Patrolling }
 
 public class ShipMission
 {
     public string ShipId { get; set; } = string.Empty;
+    public ShipType Type { get; set; } = ShipType.Miner;
     public string AsteroidId { get; set; } = string.Empty;
     public float[] AsteroidPosition { get; set; } = new float[3];
     public ShipState State { get; set; } = ShipState.Idle;
     public bool StopRequested { get; set; } = false;
+    public float[] CurrentTarget { get; set; } = new float[3];
 }
 
 public class RadarEntity

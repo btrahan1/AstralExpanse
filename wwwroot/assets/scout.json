@@ -1,0 +1,145 @@
+{
+    "Name": "Recon_Scout_Vessel",
+    "Type": "Ship",
+    "Parts": [
+        {
+            "Id": "main_fuselage",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                1.2,
+                5.0,
+                1.2
+            ],
+            "ColorHex": "#AAAAAA",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "cockpit_needle",
+            "ParentId": null,
+            "Shape": "Cone",
+            "Position": [
+                0,
+                0,
+                3.5
+            ],
+            "Rotation": [
+                -90,
+                0,
+                0
+            ],
+            "Scale": [
+                1.0,
+                2.0,
+                1.0
+            ],
+            "ColorHex": "#3366FF",
+            "Material": "Glass",
+            "Operation": "Union"
+        },
+        {
+            "Id": "wing_L",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                1.5,
+                0,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                10
+            ],
+            "Scale": [
+                2.0,
+                0.2,
+                3.0
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "wing_R",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                -1.5,
+                0,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                -10
+            ],
+            "Scale": [
+                2.0,
+                0.2,
+                3.0
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "sensor_array",
+            "ParentId": null,
+            "Shape": "Torus",
+            "Position": [
+                0,
+                0.8,
+                -1.0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                0.8,
+                0.2
+            ],
+            "ColorHex": "#00FF00",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "engine_glow",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                0,
+                -2.6
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                1.0,
+                0.2,
+                1.0
+            ],
+            "ColorHex": "#88CCFF",
+            "Material": "Glow",
+            "Operation": "Union"
+        }
+    ],
+    "Timeline": []
+}

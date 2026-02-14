@@ -63,18 +63,23 @@ window.AstralEngine = {
         console.log("AstralEngine Initialized 🚀");
     },
 
-    loadProceduralModel: function (jsonData, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0]) {
+    loadProceduralModel: function (jsonData, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0], id = null) {
         if (!this.scene) return;
         const modelData = JSON.parse(jsonData);
-        const id = modelData.Name + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-        const root = new BABYLON.TransformNode(id, this.scene);
+        const finalId = id || (modelData.Name + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000));
+        const root = new BABYLON.TransformNode(finalId, this.scene);
+        root.id = finalId;
         root.metadata = { isRoot: true, type: modelData.Type, name: modelData.Name };
-        root.position = new BABYLON.Vector3(position[0], position[1], position[2]);
+
+        const pos = position || [0, 0, 0];
+        const rot = rotation || [0, 0, 0];
+
+        root.position = new BABYLON.Vector3(pos[0], pos[1], pos[2]);
         root.scaling = new BABYLON.Vector3(scale, scale, scale);
         root.rotation = new BABYLON.Vector3(
-            BABYLON.Angle.FromDegrees(rotation[0]).radians(),
-            BABYLON.Angle.FromDegrees(rotation[1]).radians(),
-            BABYLON.Angle.FromDegrees(rotation[2]).radians()
+            BABYLON.Angle.FromDegrees(rot[0]).radians(),
+            BABYLON.Angle.FromDegrees(rot[1]).radians(),
+            BABYLON.Angle.FromDegrees(rot[2]).radians()
         );
 
         modelData.Parts.forEach(part => {
@@ -230,6 +235,15 @@ window.AstralEngine = {
             type: n.metadata.type,
             pos: [n.position.x, n.position.z]
         }));
+    },
+
+    setCameraTarget: function (x, y, z) {
+        if (!this.camera) return;
+        const targetPos = new BABYLON.Vector3(x, y, z);
+
+        // Ensure we animate the locked target if it exists, or the target property
+        const cam = this.camera;
+        BABYLON.Animation.CreateAndStartAnimation("camPan", cam, "target", 60, 30, cam.target, targetPos, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
     },
 
     getMeshOptions: function (part) {

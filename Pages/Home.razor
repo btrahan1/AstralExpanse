@@ -12,12 +12,12 @@
 
 @if (_showShipyard)
 {
-    <ShipyardMenu OnClose="() => _showShipyard = false" />
+    <ShipyardMenu Show="_showShipyard" OnClose="() => _showShipyard = false" OnBuildShip="BuildNewShip" />
 }
 
 <MiningMenu Show="_showMiningMenu" X="_mouseX" Y="_mouseY" OnStartMining="StartMiningMission" />
 
-<FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" />
+<FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" />
 
 <Radar />
 
@@ -30,8 +30,11 @@
     </div>
     @if (!string.IsNullOrEmpty(_selectedShipId))
     {
+        var parts = _selectedShipId.Split('_');
+        var typeStr = parts.Length > 1 ? parts[1] : "Unit";
+        var idStr = parts.Length > 2 ? parts[2] : "001";
         <div class="selection-info">
-            Selected: <span class="ship-id">Miner @(_selectedShipId.Split('_')[2])</span>
+            Selected: <span class="ship-id">@typeStr @idStr</span>
         </div>
     }
 </div>
@@ -78,7 +81,7 @@
             await BabylonService.SetSelected(null);
             StateHasChanged();
         }
-        else if (name == "Venture_Mining_Vessel")
+        else if (name == "Venture_Mining_Vessel" || name == "Recon_Scout_Vessel" || name == "Apex_Interceptor")
         {
             _selectedShipId = id;
             await BabylonService.SetSelected(id);
@@ -120,7 +123,7 @@
             if (mission.State == ShipState.MovingToAsteroid)
             {
                 mission.State = ShipState.Mining;
-                StateHasChanged();
+                await InvokeAsync(StateHasChanged);
                 await Task.Delay(10000); 
                 
                 mission.State = ShipState.ReturningToStation;
@@ -129,7 +132,7 @@
             else if (mission.State == ShipState.ReturningToStation)
             {
                 mission.State = ShipState.DroppingOff;
-                StateHasChanged();
+                await InvokeAsync(StateHasChanged);
                 await Task.Delay(5000); // Drop off for 5 seconds
                 
                 GameState.AddOre(100);
@@ -138,7 +141,7 @@
                 {
                     mission.State = ShipState.Idle;
                     mission.StopRequested = false;
-                    StateHasChanged();
+                    await InvokeAsync(StateHasChanged);
                 }
                 else
                 {
@@ -146,6 +149,85 @@
                     await BabylonService.MoveModel(id, mission.AsteroidPosition, 5.0f);
                 }
             }
+            else if (mission.State == ShipState.Scouting)
+            {
+                // Move to a new random distant location
+                var randomPos = GetRandomWaypoint(600, 1000);
+                mission.CurrentTarget = randomPos;
+                await BabylonService.MoveModel(id, randomPos, 12.0f);
+            }
+            else if (mission.State == ShipState.Patrolling)
+            {
+                // Move to a random waypoint nearby
+                var randomPos = GetRandomWaypoint(150, 300);
+                mission.CurrentTarget = randomPos;
+                await BabylonService.MoveModel(id, randomPos, 6.0f);
+            }
+        }
+    }
+
+    private float[] GetRandomWaypoint(float minRadius, float maxRadius)
+    {
+        var random = new Random();
+        var angle = random.NextDouble() * Math.PI * 2;
+        var radius = minRadius + (random.NextDouble() * (maxRadius - minRadius));
+        return new float[] { 
+            (float)(Math.Cos(angle) * radius), 
+            (float)((random.NextDouble() - 0.5) * 40), // Slight Y variation
+            (float)(Math.Sin(angle) * radius) 
+        };
+    }
+
+    private async Task BuildNewShip(ShipType type)
+    {
+        int cost = type switch {
+            ShipType.Miner => 100,
+            ShipType.Scout => 150,
+            ShipType.Fighter => 250,
+            _ => 100
+        };
+
+        if (GameState.TryBuildShip(type.ToString(), cost))
+        {
+            var id = $"Ship_{type}_{Guid.NewGuid().ToString()[..8]}";
+            var asset = type switch {
+                ShipType.Miner => "miner.json",
+                ShipType.Scout => "scout.json",
+                ShipType.Fighter => "fighter.json",
+                _ => "miner.json"
+            };
+            
+            var json = await Http.GetStringAsync($"assets/{asset}");
+            await BabylonService.LoadModel(json, new float[] { 0, 0, 0 }, id: id);
+            GameState.RegisterShip(id);
+            
+            // Initialize mission object
+            GameState.ActiveMissions[id] = new ShipMission { ShipId = id, Type = type, State = ShipState.Idle };
+            
+            _showShipyard = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleStartMission(string id)
+    {
+        if (GameState.ActiveMissions.TryGetValue(id, out var mission))
+        {
+            if (mission.Type == ShipType.Scout)
+            {
+                mission.State = ShipState.Scouting;
+                var waypoint = GetRandomWaypoint(600, 1000);
+                mission.CurrentTarget = waypoint;
+                await BabylonService.MoveModel(id, waypoint, 12.0f);
+            }
+            else if (mission.Type == ShipType.Fighter)
+            {
+                mission.State = ShipState.Patrolling;
+                var waypoint = GetRandomWaypoint(150, 300);
+                mission.CurrentTarget = waypoint;
+                await BabylonService.MoveModel(id, waypoint, 6.0f);
+            }
+            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -162,7 +244,15 @@
     {
         if (GameState.ActiveMissions.TryGetValue(id, out var mission))
         {
-            mission.StopRequested = true;
+            if (mission.Type == ShipType.Miner)
+            {
+                mission.StopRequested = true;
+            }
+            else
+            {
+                // For Scout/Fighter, stop immediately
+                mission.State = ShipState.Idle;
+            }
             StateHasChanged();
         }
     }

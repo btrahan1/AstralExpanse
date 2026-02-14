@@ -1,58 +1,57 @@
 @using AstralExpanse.Services
 @inject GameStateService GameState
-@inject BabylonService BabylonService
-@inject HttpClient Http
 
-<div class="shipyard-menu">
+<div class="shipyard-menu @(Show ? "visible" : "")">
     <div class="menu-header">
-        <h2>Station Shipyard</h2>
-        <button class="close-btn" @onclick="OnClose">✕</button>
+        <h3>ARK SHIPYARD</h3>
+        <button class="btn-close" @onclick="Close">×</button>
     </div>
-
-    <div class="resource-display">
-        <span>Available Ore: <strong>@GameState.Ore</strong></span>
-    </div>
-
+    
     <div class="ship-options">
-        <div class="ship-card">
-            <div class="ship-info">
-                <h3>Venture Miner</h3>
-                <p>Equipped with dual drills for asteroid mining.</p>
-                <span class="cost">Cost: 250 Ore</span>
+        <div class="ship-card" @onclick="() => BuildShip(ShipType.Miner, 100)">
+            <div class="ship-icon miner-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Venture Miner</span>
+                <span class="ship-desc">Automated resource extraction vessel.</span>
+                <span class="ship-cost">Cost: 100 Ore</span>
             </div>
-            <button class="build-btn" disabled="@(GameState.Ore < 250)" @onclick="BuildMiner">
-                @(_isBuilding ? "Constructing..." : "Build Ship")
-            </button>
+            <button class="btn-build @(GameState.Ore < 100 ? "disabled" : "")">BUILD</button>
+        </div>
+
+        <div class="ship-card" @onclick="() => BuildShip(ShipType.Scout, 150)">
+            <div class="ship-icon scout-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Recon Scout</span>
+                <span class="ship-desc">Rapid exploration and resource marking.</span>
+                <span class="ship-cost">Cost: 150 Ore</span>
+            </div>
+            <button class="btn-build @(GameState.Ore < 150 ? "disabled" : "")">BUILD</button>
+        </div>
+
+        <div class="ship-card" @onclick="() => BuildShip(ShipType.Fighter, 250)">
+            <div class="ship-icon fighter-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Apex Fighter</span>
+                <span class="ship-desc">Tactical defense and sector patrolling.</span>
+                <span class="ship-cost">Cost: 250 Ore</span>
+            </div>
+            <button class="btn-build @(GameState.Ore < 250 ? "disabled" : "")">BUILD</button>
         </div>
     </div>
 </div>
 
 @code {
+    [Parameter] public bool Show { get; set; }
     [Parameter] public EventCallback OnClose { get; set; }
-    private bool _isBuilding = false;
+    [Parameter] public EventCallback<ShipType> OnBuildShip { get; set; }
 
-    private async Task BuildMiner()
+    private async Task Close() => await OnClose.InvokeAsync();
+
+    private async Task BuildShip(ShipType type, int cost)
     {
-        if (GameState.TryBuildShip("Venture Miner", 250))
+        if (GameState.Ore >= cost)
         {
-            _isBuilding = true;
-            StateHasChanged();
-
-            // Simulate construction time
-            await Task.Delay(1000);
-
-            var minerJson = await Http.GetStringAsync("assets/miner.json");
-            
-            // Spawn ship at random offset from station
-            Random rng = new();
-            float x = (float)(rng.NextDouble() - 0.5) * 40 + 60;
-            float z = (float)(rng.NextDouble() - 0.5) * 40;
-            
-            var id = await BabylonService.LoadModel(minerJson, new float[] { x, 0, z }, 2.0f);
-            GameState.RegisterShip(id);
-
-            _isBuilding = false;
-            StateHasChanged();
+            await OnBuildShip.InvokeAsync(type);
         }
     }
 }
@@ -60,58 +59,141 @@
 <style>
     .shipyard-menu {
         position: fixed;
-        right: 40px;
-        top: 100px;
-        width: 350px;
-        background: rgba(10, 15, 30, 0.9);
-        border: 1px solid #4488ff;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.9);
+        width: 600px;
+        background: rgba(10, 20, 30, 0.95);
+        border: 2px solid #4488ff;
         border-radius: 8px;
-        color: white;
         padding: 20px;
         z-index: 100;
         backdrop-filter: blur(10px);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(68, 136, 255, 0.2);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        color: white;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    .shipyard-menu.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(-50%, -50%) scale(1);
     }
 
     .menu-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        border-bottom: 1px solid rgba(68, 136, 255, 0.3);
         margin-bottom: 20px;
-        border-bottom: 1px solid #3366cc;
         padding-bottom: 10px;
     }
 
-    .menu-header h2 { margin: 0; font-size: 1.2rem; color: #4488ff; text-transform: uppercase; letter-spacing: 2px; }
+    .menu-header h3 {
+        margin: 0;
+        color: #4488ff;
+        letter-spacing: 2px;
+        font-weight: bold;
+    }
 
-    .close-btn { background: none; border: none; color: #ff4444; font-size: 1.5rem; cursor: pointer; }
+    .btn-close {
+        background: none;
+        border: none;
+        color: #4488ff;
+        font-size: 24px;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
 
-    .resource-display { margin-bottom: 20px; font-size: 0.9rem; }
-    .resource-display strong { color: #00ffcc; }
+    .btn-close:hover {
+        color: white;
+    }
+
+    .ship-options {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
 
     .ship-card {
+        display: flex;
+        align-items: center;
         background: rgba(255, 255, 255, 0.05);
-        padding: 15px;
-        border-radius: 4px;
         border: 1px solid rgba(68, 136, 255, 0.2);
+        border-radius: 6px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
     }
 
-    .ship-info h3 { margin: 0 0 5px 0; font-size: 1rem; }
-    .ship-info p { margin: 0 0 10px 0; font-size: 0.8rem; color: #aaa; }
-    .cost { display: block; font-size: 0.8rem; color: #00ffcc; margin-bottom: 15px; }
+    .ship-card:hover {
+        background: rgba(68, 136, 255, 0.1);
+        border-color: #4488ff;
+        box-shadow: 0 0 10px rgba(68, 136, 255, 0.2);
+    }
 
-    .build-btn {
-        width: 100%;
-        padding: 10px;
+    .ship-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(68, 136, 255, 0.2);
+        border-radius: 4px;
+        margin-right: 15px;
+        position: relative;
+    }
+
+    /* Simple icon visuals using gradients/shapes */
+    .miner-icon { background: linear-gradient(135deg, #CCAA00 0%, #4488ff 100%); }
+    .scout-icon { background: linear-gradient(135deg, #00FF00 0%, #4488ff 100%); }
+    .fighter-icon { background: linear-gradient(135deg, #FF3300 0%, #4488ff 100%); }
+
+    .ship-details {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ship-title {
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 4px;
+    }
+
+    .ship-desc {
+        font-size: 0.85rem;
+        color: #aaaaaa;
+        margin-bottom: 8px;
+    }
+
+    .ship-cost {
+        font-size: 0.8rem;
+        color: #4488ff;
+        font-weight: bold;
+    }
+
+    .btn-build {
         background: #4488ff;
         border: none;
+        border-radius: 4px;
         color: white;
+        padding: 8px 16px;
         font-weight: bold;
         cursor: pointer;
-        border-radius: 4px;
-        transition: background 0.2s;
+        transition: all 0.2s;
     }
 
-    .build-btn:hover:not(:disabled) { background: #3366cc; }
-    .build-btn:disabled { background: #444; cursor: not-allowed; opacity: 0.5; }
+    .btn-build:hover:not(.disabled) {
+        background: #66aaff;
+        box-shadow: 0 0 10px #4488ff;
+    }
+
+    .btn-build.disabled {
+        background: #444;
+        color: #888;
+        cursor: not-allowed;
+    }
 </style>
