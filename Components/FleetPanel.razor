@@ -39,10 +39,6 @@
                             {
                                 <button class="btn-action patrol" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Patrol</button>
                             }
-                            else if (mission.Type == GameUnitType.TugboatUnit)
-                            {
-                                <button class="btn-action tug" @onclick:stopPropagation="true" @onclick="() => InitiateTow(shipId)">Tow</button>
-                            }
                         }
                         else if (mission != null && mission.State != ShipState.Idle && !stopRequested)
                         {

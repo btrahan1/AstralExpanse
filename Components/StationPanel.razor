@@ -14,14 +14,22 @@
             {
                 var isSelected = stationId == SelectedStationId;
                 var displayName = stationId == "Ark_Colonization_Station" ? "ARK STATION" : "SUBSTATION " + stationId.Split('_')[^1];
+                var isMoving = GameState.ActiveMissions.Values.Any(m => m.AsteroidId == stationId && m.Type == GameUnitType.TugboatUnit && m.State == ShipState.Towing);
                 <div class="station-item @(isSelected ? "selected" : "")" @onclick="() => SelectStation(stationId)">
                     <div class="station-info">
                         <span class="station-name">@displayName</span>
-                        <span class="station-status">Operational</span>
+                        <span class="station-status @(isMoving ? "transit" : "")">@(isMoving ? "In Transit" : "Operational")</span>
                     </div>
                     @if (stationId == "Ark_Colonization_Station")
                     {
                         <button class="build-btn" @onclick:stopPropagation="true" @onclick="OpenShipyard">BUILD</button>
+                    }
+                    else
+                    {
+                        @if (!isMoving)
+                        {
+                            <button class="tow-btn" @onclick:stopPropagation="true" @onclick="() => InitiateTow(stationId)">TOW</button>
+                        }
                     }
                 </div>
             }
@@ -33,6 +41,7 @@
     [Parameter] public string? SelectedStationId { get; set; }
     [Parameter] public EventCallback<string> OnSelectStation { get; set; }
     [Parameter] public EventCallback OnOpenShipyard { get; set; }
+    [Parameter] public EventCallback<string> OnInitiateStationTow { get; set; }
 
     private async Task SelectStation(string id)
     {
@@ -43,11 +52,15 @@
     {
         await OnOpenShipyard.InvokeAsync();
     }
+
+    private async Task InitiateTow(string id)
+    {
+        await OnInitiateStationTow.InvokeAsync(id);
+    }
 }
 
 <style>
-    .build-btn {
-        background: #00ffcc;
+    .build-btn, .tow-btn {
         color: #101830;
         border: none;
         border-radius: 4px;
@@ -59,9 +72,17 @@
         margin-left: 10px;
     }
 
-    .build-btn:hover {
+    .build-btn {
+        background: #00ffcc;
+    }
+
+    .tow-btn {
+        background: #ffcc00;
+    }
+
+    .build-btn:hover, .tow-btn:hover {
         background: #ffffff;
-        box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
     }
     .station-panel {
         position: fixed;
@@ -148,9 +169,8 @@
         font-size: 0.85rem;
     }
 
-    .station-status {
-        font-size: 0.7rem;
-        color: #00ffcc;
-        margin-top: 2px;
+    .station-status.transit {
+        color: #ffcc00;
+        font-style: italic;
     }
 </style>

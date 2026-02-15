@@ -28,7 +28,7 @@
 
     <FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" />
 
-    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="() => _showShipyard = true" />
+    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="() => _showShipyard = true" OnInitiateStationTow="HandleInitiateStationTow" />
 
     <Radar @ref="_radar" OnLocationSelected="HandleRadarLocationSelected" />
 
@@ -62,10 +62,14 @@
                 }
             }
             
-            @if (_isTowingMode || !string.IsNullOrEmpty(_towingTargetId))
+            @if (_isTowingMode || !string.IsNullOrEmpty(_towingTargetId) || !string.IsNullOrEmpty(_stationPendingTowId))
             {
                 <div class="guidance-hud">
-                    @if (string.IsNullOrEmpty(_towingTargetId))
+                    @if (!string.IsNullOrEmpty(_stationPendingTowId))
+                    {
+                        <span class="success">SELECT DESTINATION ON RADAR</span>
+                    }
+                    else if (string.IsNullOrEmpty(_towingTargetId))
                     {
                         <span class="warning">SELECT SUBSTATION TO TOW</span>
                     }
@@ -73,6 +77,13 @@
                     {
                         <span class="success">SELECT DESTINATION ON RADAR</span>
                     }
+                </div>
+            }
+            
+            @if (_noTugsAvailable)
+            {
+                <div class="guidance-hud">
+                    <span class="warning">NO IDLE TUGBOATS AVAILABLE</span>
                 </div>
             }
         </div>
@@ -90,6 +101,8 @@
     private float[]? _targetAsteroidPos;
     private bool _isTowingMode = false;
     private string? _towingTargetId;
+    private string? _stationPendingTowId;
+    private bool _noTugsAvailable = false;
     private Radar? _radar;
     private bool _isGameActive = false;
     private System.Timers.Timer? _saveTimer;
@@ -584,20 +597,66 @@
 
     private async Task HandleRadarLocationSelected(float[] worldPos)
     {
-        if (_isTowingMode && !string.IsNullOrEmpty(_selectedShipId) && !string.IsNullOrEmpty(_towingTargetId))
+        if (!string.IsNullOrEmpty(_stationPendingTowId))
         {
-            // Initiate Towing Mission
+            // NEW Autonomous Towing Flow
+            var subPos = await BabylonService.GetModelPosition(_stationPendingTowId);
+            if (subPos == null) return;
+
+            // Find nearest idle tugboat
+            string? nearestTugId = null;
+            float minDistance = float.MaxValue;
+
+            foreach (var shipId in GameState.Fleet)
+            {
+                if (GameState.ActiveMissions.TryGetValue(shipId, out var testMission))
+                {
+                    if (testMission.Type == GameUnitType.TugboatUnit && testMission.State == ShipState.Idle)
+                    {
+                        var shipPos = await BabylonService.GetModelPosition(shipId) ?? testMission.Position;
+                        float dist = GetDistance(shipPos, subPos);
+                        if (dist < minDistance)
+                        {
+                            minDistance = dist;
+                            nearestTugId = shipId;
+                        }
+                    }
+                }
+            }
+
+            if (nearestTugId != null)
+            {
+                var mission = GameState.ActiveMissions[nearestTugId];
+                mission.State = ShipState.MovingToAsteroid;
+                mission.AsteroidId = _stationPendingTowId;
+                mission.AsteroidPosition = worldPos; // Final target
+                
+                var shipPos = await BabylonService.GetModelPosition(nearestTugId) ?? mission.Position;
+                await BabylonService.MoveModel(nearestTugId, subPos, GetMoveDuration(shipPos, subPos, 20.0f));
+                
+                _stationPendingTowId = null;
+                _noTugsAvailable = false;
+            }
+            else
+            {
+                _noTugsAvailable = true;
+                _ = Task.Run(async () => { await Task.Delay(3000); _noTugsAvailable = false; StateHasChanged(); });
+            }
+            StateHasChanged();
+        }
+        else if (_isTowingMode && !string.IsNullOrEmpty(_selectedShipId) && !string.IsNullOrEmpty(_towingTargetId))
+        {
+            // LEGACY Manual Towing Flow (kept for compatibility or until fully removed)
             if (GameState.ActiveMissions.TryGetValue(_selectedShipId, out var mission))
             {
-                mission.State = ShipState.MovingToAsteroid; // Reusing state for "Moving to SubStation"
+                mission.State = ShipState.MovingToAsteroid; 
                 mission.AsteroidId = _towingTargetId;
-                mission.AsteroidPosition = worldPos; // This is the final target position
+                mission.AsteroidPosition = worldPos;
                 
-                // First move to the substation
                 var subPos = await BabylonService.GetModelPosition(_towingTargetId);
                 if (subPos != null)
                 {
-                    var shipPos = await BabylonService.GetModelPosition(_selectedShipId) ?? new float[] { 0, 0, 0 };
+                    var shipPos = await BabylonService.GetModelPosition(_selectedShipId) ?? mission.Position;
                     await BabylonService.MoveModel(_selectedShipId, subPos, GetMoveDuration(shipPos, subPos, 20.0f));
                 }
                 
@@ -606,6 +665,15 @@
                 await InvokeAsync(StateHasChanged);
             }
         }
+    }
+
+    private void HandleInitiateStationTow(string id)
+    {
+        _stationPendingTowId = id;
+        _selectedStationId = id;
+        _selectedShipId = null;
+        _isTowingMode = false;
+        StateHasChanged();
     }
 
     private async Task HandleStartMission(string id)
