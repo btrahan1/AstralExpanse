@@ -164,6 +164,13 @@ window.AstralEngine = {
         return id;
     },
 
+    loadModels: function (models) {
+        if (!this.scene || !models) return;
+        models.forEach(m => {
+            this.loadProceduralModel(m.jsonData, m.position, m.scale, m.rotation, m.id);
+        });
+    },
+
     spawnAsteroidField: function (jsonData, count, radius) {
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;

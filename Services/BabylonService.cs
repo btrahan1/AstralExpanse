@@ -1,4 +1,5 @@
 using Microsoft.JSInterop;
+using System.Collections.Generic;
 
 namespace AstralExpanse.Services;
 
@@ -28,6 +29,11 @@ public class BabylonService
     public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null, string? id = null)
     {
         return await _jsRuntime.InvokeAsync<string>("AstralEngine.loadProceduralModel", jsonContent, pos ?? new float[] { 0, 0, 0 }, scale, rot ?? new float[] { 0, 0, 0 }, id);
+    }
+
+    public async Task LoadModels(List<ModelLoadData> models)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.loadModels", models);
     }
 
     public async Task MoveModel(string id, float[] targetPos, float duration)

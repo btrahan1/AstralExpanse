@@ -4,47 +4,74 @@
 <div class="fleet-panel">
     <h3>Fleet Command</h3>
     <div class="ship-list">
-        @if (!GameState.Fleet.Any())
+        @if (!GameState.Stations.Any())
         {
-            <div class="empty-fleet">No ships active.</div>
+            <div class="empty-fleet">No command hubs detected.</div>
         }
         else
         {
-            @foreach (var shipId in GameState.Fleet)
+            @foreach (var stationId in GameState.Stations)
             {
-                var isSelected = shipId == SelectedShipId;
-                GameState.ActiveMissions.TryGetValue(shipId, out var mission);
-                var status = mission?.State.ToString() ?? "Idle";
-                var stopRequested = mission?.StopRequested ?? false;
-                <div class="ship-item @(isSelected ? "selected" : "")" @onclick="() => SelectShip(shipId)">
-                    <div class="ship-info">
-                        <span class="ship-name">@(mission?.Type.ToString() ?? "Unit") @(shipId.Split('_')[^1])</span>
-                        <span class="ship-status @status.ToLower()">@status @(stopRequested ? "(Stopping)" : "")</span>
+                var stationName = stationId == "Ark_Colonization_Station" ? "Ark Station (Home)" : $"SubStation {stationId.Split('_')[2]}";
+                var isCollapsed = _collapsedStations.Contains(stationId);
+                var stationShips = GameState.ActiveMissions.Values.Where(m => m.ParentStationId == stationId).ToList();
+
+                <div class="station-group">
+                    <div class="station-group-header" @onclick="() => ToggleStation(stationId)">
+                        <span class="collapse-icon">@(isCollapsed ? "▶" : "▼")</span>
+                        <span class="station-group-name">@stationName</span>
+                        <span class="ship-count">@stationShips.Count</span>
                     </div>
-                    @if (mission != null && (mission.State == ShipState.Mining || mission.State == ShipState.Unloading))
+
+                    @if (!isCollapsed)
                     {
-                        <div class="cargo-container">
-                            <div class="cargo-bar" style="width: @(mission.Cargo)%"></div>
-                            <span class="cargo-text">@(mission.Cargo)%</span>
+                        <div class="station-group-content">
+                            @if (!stationShips.Any())
+                            {
+                                <div class="empty-group">No ships assigned.</div>
+                            }
+                            else
+                            {
+                                @foreach (var mission in stationShips)
+                                {
+                                    var shipId = mission.ShipId;
+                                    var isSelected = shipId == SelectedShipId;
+                                    var status = mission.State.ToString();
+                                    var stopRequested = mission.StopRequested;
+                                    <div class="ship-item @(isSelected ? "selected" : "")" @onclick="() => SelectShip(shipId)">
+                                        <div class="ship-info">
+                                            <span class="ship-name">@mission.Type.ToString() @(shipId.Split('_')[^1])</span>
+                                            <span class="ship-status @status.ToLower()">@status @(stopRequested ? "(Stopping)" : "")</span>
+                                        </div>
+                                        @if (mission.State == ShipState.Mining || mission.State == ShipState.Unloading)
+                                        {
+                                            <div class="cargo-container">
+                                                <div class="cargo-bar" style="width: @(mission.Cargo)%"></div>
+                                                <span class="cargo-text">@(mission.Cargo)%</span>
+                                            </div>
+                                        }
+                                        <div class="ship-actions">
+                                            @if (mission.State == ShipState.Idle)
+                                            {
+                                                @if (mission.Type == GameUnitType.ScoutUnit)
+                                                {
+                                                    <button class="btn-action scout" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Scout</button>
+                                                }
+                                                else if (mission.Type == GameUnitType.FighterUnit)
+                                                {
+                                                    <button class="btn-action patrol" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Patrol</button>
+                                                }
+                                            }
+                                            else if (mission.State != ShipState.Idle && !stopRequested)
+                                            {
+                                                <button class="btn-stop" @onclick:stopPropagation="true" @onclick="() => StopMining(shipId)">Stop</button>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
                         </div>
                     }
-                    <div class="ship-actions">
-                        @if (mission != null && mission.State == ShipState.Idle)
-                        {
-                            @if (mission.Type == GameUnitType.ScoutUnit)
-                            {
-                                <button class="btn-action scout" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Scout</button>
-                            }
-                            else if (mission.Type == GameUnitType.FighterUnit)
-                            {
-                                <button class="btn-action patrol" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Patrol</button>
-                            }
-                        }
-                        else if (mission != null && mission.State != ShipState.Idle && !stopRequested)
-                        {
-                            <button class="btn-stop" @onclick:stopPropagation="true" @onclick="() => StopMining(shipId)">Stop</button>
-                        }
-                    </div>
                 </div>
             }
         }
@@ -57,6 +84,14 @@
     [Parameter] public EventCallback<string> OnStopMining { get; set; }
     [Parameter] public EventCallback<string> OnStartMission { get; set; }
     [Parameter] public EventCallback<string> OnInitiateTow { get; set; }
+
+    private HashSet<string> _collapsedStations = new HashSet<string>();
+
+    private void ToggleStation(string id)
+    {
+        if (_collapsedStations.Contains(id)) _collapsedStations.Remove(id);
+        else _collapsedStations.Add(id);
+    }
 
     private async Task SelectShip(string id)
     {
@@ -131,12 +166,69 @@
         font-size: 0.8rem;
     }
 
+    .station-group {
+        margin-bottom: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .station-group-header {
+        background: rgba(68, 136, 255, 0.1);
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: background 0.2s;
+        border-bottom: 1px solid rgba(68, 136, 255, 0.1);
+    }
+
+    .station-group-header:hover {
+        background: rgba(68, 136, 255, 0.2);
+    }
+
+    .collapse-icon {
+        font-size: 0.6rem;
+        margin-right: 8px;
+        color: #4488ff;
+        width: 10px;
+    }
+
+    .station-group-name {
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        flex-grow: 1;
+        color: #88ccff;
+    }
+
+    .ship-count {
+        font-size: 0.65rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 10px;
+        color: #888;
+    }
+
+    .station-group-content {
+        padding: 8px;
+    }
+
+    .empty-group {
+        font-size: 0.7rem;
+        color: #666;
+        text-align: center;
+        padding: 10px;
+    }
+
     .ship-item {
         background: rgba(255,255,255,0.05);
         border: 1px solid rgba(255,255,255,0.1);
         border-radius: 8px;
         padding: 10px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         cursor: pointer;
         transition: all 0.2s;
         display: flex;

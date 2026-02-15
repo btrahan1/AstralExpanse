@@ -19,14 +19,24 @@ public class ShipMission
     public string? TowedEntityId { get; set; }
     public int Cargo { get; set; } = 0;
     public int MaxCargo { get; set; } = 100;
+    public string ParentStationId { get; set; } = "Ark_Colonization_Station";
+}
+
+public class ModelLoadData
+{
+    public string JsonData { get; set; } = "";
+    public float[] Position { get; set; } = new float[] { 0, 0, 0 };
+    public float Scale { get; set; } = 1.0f;
+    public float[] Rotation { get; set; } = new float[] { 0, 0, 0 };
+    public string Id { get; set; } = "";
 }
 
 public class RadarEntity
 {
-    public string Id { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty; // "Station", "Ship", "Asteroid", "SubStation"
-    public float[] Pos { get; set; } = new float[2];
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Type { get; set; } = ""; // "Station", "Ship", "Asteroid", "SubStation"
+    public float[] Pos { get; set; } = new float[] { 0, 0 };
 }
 
 public class AsteroidData

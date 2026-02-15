@@ -28,7 +28,7 @@
 
     <FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" />
 
-    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="() => _showShipyard = true" OnInitiateStationTow="HandleInitiateStationTow" />
+    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="id => { _shipyardStationId = id; _showShipyard = true; }" OnInitiateStationTow="HandleInitiateStationTow" />
 
     <Radar @ref="_radar" OnLocationSelected="HandleRadarLocationSelected" />
 
@@ -195,7 +195,7 @@
             GameState.RegisterStation("Ark_Colonization_Station", new float[] { 0, 0, 0 });
             
             // Initial Asteroid Field
-            await SpawnAsteroidField(20, 400);
+            await SpawnAsteroidField(new float[] { 0, 0, 0 }, 20, 400);
         }
         else
         {
@@ -240,24 +240,25 @@
         }
     }
 
-    private async Task SpawnAsteroidField(int count, float radius)
+    private async Task SpawnAsteroidField(float[] center, int count, float radius)
     {
         var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
         var rnd = new Random();
+        var modelsToLoad = new List<ModelLoadData>();
         
         for (int i = 0; i < count; i++)
         {
             float angle = (float)(rnd.NextDouble() * Math.PI * 2);
             float dist = (float)(rnd.NextDouble() * radius * 0.8 + radius * 0.2);
-            float x = (float)Math.Cos(angle) * dist;
-            float z = (float)Math.Sin(angle) * dist;
-            float y = (float)(rnd.NextDouble() * 40 - 20);
+            float x = center[0] + (float)Math.Cos(angle) * dist;
+            float z = center[2] + (float)Math.Sin(angle) * dist;
+            float y = center[1] + (float)(rnd.NextDouble() * 40 - 20);
             
             var pos = new float[] { x, y, z };
             var rot = new float[] { (float)rnd.NextDouble() * 6, (float)rnd.NextDouble() * 6, (float)rnd.NextDouble() * 6 };
             float scale = (float)(rnd.NextDouble() * 0.5 + 0.7);
             string id = $"Asteroid_{Guid.NewGuid().ToString().Substring(0, 8)}";
-            string name = $"Iron-Rich Asteroid {i + 1:D3}";
+            string name = $"Iron-Rich Asteroid {GameState.Asteroids.Count + modelsToLoad.Count + 1:D3}";
 
             var data = new AsteroidData {
                 Id = id,
@@ -269,7 +270,23 @@
             };
             GameState.Asteroids.Add(data);
             
-            await BabylonService.LoadModel(asteroidJson, pos: pos, rot: rot, scale: scale, id: id);
+            modelsToLoad.Add(new ModelLoadData {
+                Id = id,
+                JsonData = asteroidJson,
+                Position = pos,
+                Rotation = rot,
+                Scale = scale
+            });
+        }
+
+        try 
+        {
+            await BabylonService.LoadModels(modelsToLoad);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Batch load warning (likely external script conflict): {ex.Message}");
+            // Continue anyway as the state is updated
         }
     }
 
@@ -353,7 +370,7 @@
             }
 
             mission.State = ShipState.ReturningToStation;
-            var target = new float[] { 0, 0, 0 };
+            var target = GameState.StationPositions.TryGetValue(mission.ParentStationId, out var stationPos) ? stationPos : new float[] { 0, 0, 0 };
             mission.CurrentTarget = target;
             var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
             await BabylonService.MoveModel(id, target, GetMoveDuration(shipPos, target, 20.0f));
@@ -470,14 +487,27 @@
     {
         if (string.IsNullOrEmpty(_selectedShipId) || _targetAsteroidPos == null) return;
 
-        var mission = new ShipMission {
-            ShipId = _selectedShipId,
-            AsteroidId = _targetAsteroidId!,
-            AsteroidPosition = _targetAsteroidPos,
-            State = ShipState.MovingToAsteroid
-        };
+        // Preserve existing mission data (like ParentStationId) if it exists
+        if (GameState.ActiveMissions.TryGetValue(_selectedShipId, out var existingMission))
+        {
+            existingMission.AsteroidId = _targetAsteroidId!;
+            existingMission.AsteroidPosition = _targetAsteroidPos;
+            existingMission.State = ShipState.MovingToAsteroid;
+            existingMission.StopRequested = false;
+        }
+        else
+        {
+            // Fallback for new missions (though they should usually exist)
+            var mission = new ShipMission {
+                ShipId = _selectedShipId,
+                AsteroidId = _targetAsteroidId!,
+                AsteroidPosition = _targetAsteroidPos,
+                State = ShipState.MovingToAsteroid,
+                ParentStationId = "Ark_Colonization_Station"
+            };
+            GameState.ActiveMissions[_selectedShipId] = mission;
+        }
 
-        GameState.ActiveMissions[_selectedShipId] = mission;
         _showMiningMenu = false;
 
         var shipPos = await BabylonService.GetModelPosition(_selectedShipId) ?? new float[] { 0, 0, 0 };
@@ -506,13 +536,18 @@
                 await InvokeAsync(StateHasChanged);
                 
                 // Move both to final destination
-                await BabylonService.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(new float[]{0,0,0}, mission.AsteroidPosition, 10.0f)); // Towing is slower
+                var currentShipPos = await BabylonService.GetModelPosition(id) ?? new float[] { 0, 0, 0 };
+                await BabylonService.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(currentShipPos, mission.AsteroidPosition, 10.0f)); // Towing is slower
             }
             else if (mission.State == AstralExpanse.Services.ShipState.Towing)
             {
                 // Towing complete
                 mission.State = ShipState.Idle;
                 await BabylonService.DetachFromParent(mission.AsteroidId, mission.AsteroidPosition); // Detach at target
+                
+                // Trigger auto-scan for asteroids at destination
+                await SpawnAsteroidField(mission.AsteroidPosition, 6, 150); // Scan and find 6 local asteroids
+                
                 await InvokeAsync(StateHasChanged);
             }
             else if (mission.State == ShipState.Scouting)
@@ -548,6 +583,13 @@
 
     private async Task BuildNewShip(AstralExpanse.Services.GameUnitType unitType)
     {
+        await BuildNewShipFromStation(unitType, _shipyardStationId ?? "Ark_Colonization_Station");
+    }
+
+    private string? _shipyardStationId;
+
+    private async Task BuildNewShipFromStation(AstralExpanse.Services.GameUnitType unitType, string builderStationId)
+    {
         int cost = unitType switch {
             AstralExpanse.Services.GameUnitType.MinerUnit => 100,
             AstralExpanse.Services.GameUnitType.ScoutUnit => 150,
@@ -569,7 +611,11 @@
                 _ => "miner.json"
             };
             
-            var spawnPos = unitType == AstralExpanse.Services.GameUnitType.SubStationUnit ? new float[] { 0, 0, 120 } : new float[] { 0, 0, 0 };
+            var stationPos = GameState.StationPositions.TryGetValue(builderStationId, out var sPos) ? sPos : new float[] { 0, 0, 0 };
+            var spawnPos = unitType == AstralExpanse.Services.GameUnitType.SubStationUnit ? 
+                new float[] { stationPos[0], stationPos[1], stationPos[2] + 120 } : 
+                new float[] { stationPos[0], stationPos[1], stationPos[2] };
+
             var json = await Http.GetStringAsync($"assets/{asset}");
             await BabylonService.LoadModel(json, spawnPos, id: id);
             
@@ -581,14 +627,14 @@
                     ShipId = id, 
                     Type = unitType, 
                     State = AstralExpanse.Services.ShipState.Idle,
-                    Position = spawnPos
+                    Position = spawnPos,
+                    ParentStationId = builderStationId
                 };
             }
             else
             {
                 GameState.RegisterStation(id, spawnPos);
             }
-            // Substations aren't "fleet" but they exist in the world and on radar
             
             _showShipyard = false;
             await InvokeAsync(StateHasChanged);
