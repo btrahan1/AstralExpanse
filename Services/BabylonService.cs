@@ -73,6 +73,14 @@ public class BabylonService
         OnMoveComplete?.Invoke(id);
     }
 
+    public event Action? OnEscapePressed;
+
+    [JSInvokable]
+    public void NotifyEscapePressed()
+    {
+        OnEscapePressed?.Invoke();
+    }
+
     [JSInvokable]
     public void OnObjectPicked(string name, string id)
     {

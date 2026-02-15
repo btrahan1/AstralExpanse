@@ -17,52 +17,55 @@
     <MainMenu OnNewGame="HandleNewGame" OnContinueGame="HandleContinueGame" />
 }
 
-@if (_showShipyard)
+@if (_isGameActive)
 {
-    <ShipyardMenu Show="_showShipyard" OnClose="() => _showShipyard = false" OnBuildShip="BuildNewShip" />
+    @if (_showShipyard)
+    {
+        <ShipyardMenu Show="_showShipyard" OnClose="() => _showShipyard = false" OnBuildShip="BuildNewShip" />
+    }
+
+    <MiningMenu Show="_showMiningMenu" X="_mouseX" Y="_mouseY" OnStartMining="StartMiningMission" />
+
+    <FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" />
+
+    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" />
+
+    <Radar @ref="_radar" OnLocationSelected="HandleRadarLocationSelected" />
+
+    <div class="ui-container" tabindex="-1">
+        <div class="ui-overlay">
+            <h1>Astral Expanse</h1>
+            <p>Orbiting Ark Colonization Station</p>
+            <div class="stats">
+                <span>Ore: <strong>@GameState.Ore</strong></span> | 
+                <span>Fleet: <strong>@GameState.Fleet.Count</strong></span>
+            </div>
+            @if (!string.IsNullOrEmpty(_selectedShipId))
+            {
+                var parts = _selectedShipId.Split('_');
+                var typeStr = parts.Length > 1 ? parts[1] : "Unit";
+                var idStr = parts.Length > 2 ? parts[2] : "001";
+                <div class="selection-info">
+                    Selected: <span class="ship-id">@typeStr @idStr</span>
+                </div>
+            }
+            
+            @if (_isTowingMode || !string.IsNullOrEmpty(_towingTargetId))
+            {
+                <div class="guidance-hud">
+                    @if (string.IsNullOrEmpty(_towingTargetId))
+                    {
+                        <span class="warning">SELECT SUBSTATION TO TOW</span>
+                    }
+                    else
+                    {
+                        <span class="success">SELECT DESTINATION ON RADAR</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 }
-
-<MiningMenu Show="_showMiningMenu" X="_mouseX" Y="_mouseY" OnStartMining="StartMiningMission" />
-
-<FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" />
-
-<StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" />
-
-<Radar @ref="_radar" OnLocationSelected="HandleRadarLocationSelected" />
-
-<div class="ui-container" @onkeydown="HandleKeyDown" tabindex="0">
-    <div class="ui-overlay">
-    <h1>Astral Expanse</h1>
-    <p>Orbiting Ark Colonization Station</p>
-    <div class="stats">
-        <span>Ore: <strong>@GameState.Ore</strong></span> | 
-        <span>Fleet: <strong>@GameState.Fleet.Count</strong></span>
-    </div>
-    @if (!string.IsNullOrEmpty(_selectedShipId))
-    {
-        var parts = _selectedShipId.Split('_');
-        var typeStr = parts.Length > 1 ? parts[1] : "Unit";
-        var idStr = parts.Length > 2 ? parts[2] : "001";
-        <div class="selection-info">
-            Selected: <span class="ship-id">@typeStr @idStr</span>
-        </div>
-    }
-    
-    @if (_isTowingMode || !string.IsNullOrEmpty(_towingTargetId))
-    {
-        <div class="guidance-hud">
-            @if (string.IsNullOrEmpty(_towingTargetId))
-            {
-                <span class="warning">SELECT SUBSTATION TO TOW</span>
-            }
-            else
-            {
-                <span class="success">SELECT DESTINATION ON RADAR</span>
-            }
-        </div>
-    }
-    </div>
-</div>
 
 @code {
     private bool _showShipyard = false;
@@ -83,6 +86,7 @@
         GameState.OnStateChanged += StateHasChanged;
         BabylonService.OnObjectClicked += HandleObjectClicked;
         BabylonService.OnMoveComplete += HandleMoveComplete;
+        BabylonService.OnEscapePressed += HandleEscape;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -92,9 +96,13 @@
             await Task.Delay(500);
             
             // Setup auto-save timer
-            _saveTimer = new System.Timers.Timer(30000); // 30 seconds
+            _saveTimer = new System.Timers.Timer(10000); // 10 seconds (more frequent for position sync)
             _saveTimer.Elapsed += async (s, e) => {
-                if (_isGameActive) await Persistence.SaveGame(GameState);
+                if (_isGameActive) 
+                {
+                    await SyncPositionsToState();
+                    await Persistence.SaveGame(GameState);
+                }
             };
             _saveTimer.Enabled = true;
 
@@ -112,7 +120,7 @@
         
         _isGameActive = true;
         await Task.Delay(100); // Wait for render
-        await JSRuntime.InvokeVoidAsync("document.querySelector('.ui-container').focus");
+        await JSRuntime.InvokeVoidAsync("AstralEngine.focusElement", ".ui-container");
         StateHasChanged();
     }
 
@@ -128,19 +136,25 @@
         await Initialize3DScene(isLoad: true);
         
         _isGameActive = true;
-        await Task.Delay(100); // Wait for render
-        await JSRuntime.InvokeVoidAsync("document.querySelector('.ui-container').focus");
+        await Task.Delay(200); // Wait for things to settle
+        await JSRuntime.InvokeVoidAsync("AstralEngine.focusElement", ".ui-container");
+        
+        // Immediate sync to capture loaded positions
+        await SyncPositionsToState();
         StateHasChanged();
     }
 
-    private async Task HandleKeyDown(KeyboardEventArgs e)
+    private async void HandleEscape()
     {
-        if (e.Key == "Escape" && _isGameActive)
-        {
-            await Persistence.SaveGame(GameState);
-            _isGameActive = false;
-            StateHasChanged();
-        }
+        await InvokeAsync(async () => {
+            if (_isGameActive)
+            {
+                await SyncPositionsToState();
+                await Persistence.SaveGame(GameState);
+                _isGameActive = false;
+                StateHasChanged();
+            }
+        });
     }
 
     private async Task Initialize3DScene(bool isLoad = false)
@@ -152,7 +166,7 @@
         {
             // Initial Ark Station
             await BabylonService.LoadModel(stationJson, id: "Ark_Colonization_Station");
-            GameState.RegisterStation("Ark_Colonization_Station");
+            GameState.RegisterStation("Ark_Colonization_Station", new float[] { 0, 0, 0 });
             
             // Initial Asteroid Field
             var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
@@ -166,10 +180,7 @@
                 var asset = stationId == "Ark_Colonization_Station" ? "station.json" : "substation.json";
                 var json = await Http.GetStringAsync($"assets/{asset}");
                 
-                // For substations, we need their position. 
-                // For now, let's assume we need to expand GameState to hold positions or just use defaults for Ark.
-                // Ark is always at 0,0,0
-                var pos = stationId == "Ark_Colonization_Station" ? new float[] { 0, 0, 0 } : new float[] { 0, 0, 120 }; 
+                var pos = GameState.StationPositions.TryGetValue(stationId, out var savedPos) ? savedPos : new float[] { 0, 0, 0 };
                 await BabylonService.LoadModel(json, pos: pos, id: stationId);
             }
 
@@ -185,14 +196,111 @@
                         _ => "miner.json"
                     };
                     var json = await Http.GetStringAsync($"assets/{asset}");
-                    await BabylonService.LoadModel(json, id: shipId);
+                    await BabylonService.LoadModel(json, pos: mission.Position, rot: mission.Rotation, id: shipId);
                 }
             }
 
             // Always respawn asteroids for now
             var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
             await BabylonService.SpawnAsteroidField(asteroidJson, 20, 400);
+
+            // Kick off missions
+            await ResumeMissions();
         }
+    }
+
+    private async Task SyncPositionsToState()
+    {
+        foreach (var shipId in GameState.Fleet)
+        {
+            var pos = await BabylonService.GetModelPosition(shipId);
+            if (pos != null && GameState.ActiveMissions.TryGetValue(shipId, out var mission))
+            {
+                mission.Position = pos;
+            }
+        }
+        
+        foreach (var stationId in GameState.Stations)
+        {
+            var pos = await BabylonService.GetModelPosition(stationId);
+            if (pos != null) GameState.StationPositions[stationId] = pos;
+        }
+    }
+
+    private async Task ResumeMissions()
+    {
+        foreach (var shipId in GameState.Fleet)
+        {
+            if (GameState.ActiveMissions.TryGetValue(shipId, out var mission))
+            {
+                // If it was moving, restart movement to its current target
+                if (mission.State == ShipState.MovingToAsteroid || 
+                    mission.State == ShipState.ReturningToStation ||
+                    mission.State == ShipState.Scouting ||
+                    mission.State == ShipState.Patrolling)
+                {
+                    float dist = GetDistance(mission.Position, mission.CurrentTarget);
+                    float duration = dist / 20.0f; // Approx speed
+                    await BabylonService.MoveModel(shipId, mission.CurrentTarget, Math.Max(1, duration));
+                }
+                else if (mission.State == ShipState.Mining)
+                {
+                    // Restart mining routine
+                    _ = HandleMiningSequence(shipId);
+                }
+                else if (mission.State == ShipState.DroppingOff)
+                {
+                    // Restart dropoff routine
+                    _ = HandleDropoffSequence(shipId);
+                }
+                else if (mission.State == ShipState.Towing && !string.IsNullOrEmpty(mission.TowedEntityId))
+                {
+                    // Re-attach in engine
+                    await BabylonService.AttachToParent(mission.TowedEntityId, shipId);
+                }
+            }
+        }
+    }
+
+    private async Task HandleMiningSequence(string id)
+    {
+        if (GameState.ActiveMissions.TryGetValue(id, out var mission))
+        {
+            await Task.Delay(10000); 
+            mission.State = ShipState.ReturningToStation;
+            var target = new float[] { 0, 0, 0 };
+            mission.CurrentTarget = target;
+            await BabylonService.MoveModel(id, target, 5.0f);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleDropoffSequence(string id)
+    {
+        if (GameState.ActiveMissions.TryGetValue(id, out var mission))
+        {
+            await Task.Delay(5000);
+            GameState.AddOre(100);
+            
+            if (mission.StopRequested)
+            {
+                mission.State = ShipState.Idle;
+                mission.StopRequested = false;
+            }
+            else
+            {
+                // Restart mining loop
+                mission.State = ShipState.MovingToAsteroid;
+                mission.CurrentTarget = mission.AsteroidPosition;
+                await BabylonService.MoveModel(id, mission.AsteroidPosition, 5.0f);
+            }
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private float GetDistance(float[] p1, float[] p2)
+    {
+        return (float)Math.Sqrt(Math.Pow(p1[0] - p2[0], 2) + Math.Pow(p1[1] - p2[1], 2) + Math.Pow(p1[2] - p2[2], 2));
     }
 
     private async void HandleObjectClicked(string name, string id)
@@ -381,11 +489,16 @@
             {
                 GameState.RegisterShip(id);
                 // Initialize mission object
-                GameState.ActiveMissions[id] = new ShipMission { ShipId = id, Type = unitType, State = AstralExpanse.Services.ShipState.Idle };
+                GameState.ActiveMissions[id] = new ShipMission { 
+                    ShipId = id, 
+                    Type = unitType, 
+                    State = AstralExpanse.Services.ShipState.Idle,
+                    Position = spawnPos
+                };
             }
             else
             {
-                GameState.RegisterStation(id);
+                GameState.RegisterStation(id, spawnPos);
             }
             // Substations aren't "fleet" but they exist in the world and on radar
             
@@ -493,6 +606,7 @@
         GameState.OnStateChanged -= StateHasChanged;
         BabylonService.OnObjectClicked -= HandleObjectClicked;
         BabylonService.OnMoveComplete -= HandleMoveComplete;
+        BabylonService.OnEscapePressed -= HandleEscape;
         _saveTimer?.Dispose();
     }
 }
@@ -506,13 +620,14 @@
         height: 100%;
         pointer-events: none;
         outline: none;
+        z-index: 100;
     }
 
     .ui-overlay {
         position: fixed;
         top: 20px;
         left: 20px;
-        z-index: 10;
+        z-index: 200;
         color: white;
         pointer-events: none;
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

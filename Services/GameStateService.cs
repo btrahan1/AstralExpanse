@@ -11,6 +11,8 @@ public class ShipMission
     public GameUnitType Type { get; set; } = GameUnitType.MinerUnit;
     public string AsteroidId { get; set; } = string.Empty; // Also used for SubStation ID when towing
     public float[] AsteroidPosition { get; set; } = new float[3]; // Target destination
+    public float[] Position { get; set; } = new float[3]; // Current world position
+    public float[] Rotation { get; set; } = new float[3]; // Current world rotation
     public ShipState State { get; set; } = ShipState.Idle;
     public bool StopRequested { get; set; } = false;
     public float[] CurrentTarget { get; set; } = new float[3];
@@ -30,6 +32,7 @@ public class GameStateService
     public int Ore { get; set; } = 1000;
     public List<string> Fleet { get; set; } = new List<string>();
     public List<string> Stations { get; set; } = new List<string>();
+    public Dictionary<string, float[]> StationPositions { get; set; } = new Dictionary<string, float[]>();
     public Dictionary<string, ShipMission> ActiveMissions { get; set; } = new Dictionary<string, ShipMission>();
 
     public event Action? OnStateChanged;
@@ -49,11 +52,12 @@ public class GameStateService
         }
     }
 
-    public void RegisterStation(string id)
+    public void RegisterStation(string id, float[] position)
     {
         if (!Stations.Contains(id))
         {
             Stations.Add(id);
+            StationPositions[id] = position;
             Notify();
         }
     }
@@ -74,6 +78,7 @@ public class GameStateService
         Ore = 1000;
         Fleet.Clear();
         Stations.Clear();
+        StationPositions.Clear();
         ActiveMissions.Clear();
         Notify();
     }
@@ -84,6 +89,7 @@ public class GameStateService
         Ore = savedState.Ore;
         Fleet = savedState.Fleet;
         Stations = savedState.Stations;
+        StationPositions = savedState.StationPositions ?? new Dictionary<string, float[]>();
         ActiveMissions = savedState.ActiveMissions;
         Notify();
     }

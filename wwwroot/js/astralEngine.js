@@ -60,6 +60,13 @@ window.AstralEngine = {
             this.engine.resize();
         });
 
+        // Global Key Listener for ESC
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && this.dotNetRef) {
+                this.dotNetRef.invokeMethodAsync("NotifyEscapePressed");
+            }
+        });
+
         console.log("AstralEngine Initialized 🚀");
     },
 
@@ -280,5 +287,10 @@ window.AstralEngine = {
             case "Cone": return { diameter: 1, height: 1 };
             default: return {};
         }
+    },
+
+    focusElement: function (selector) {
+        const el = document.querySelector(selector);
+        if (el) el.focus();
     }
 };
