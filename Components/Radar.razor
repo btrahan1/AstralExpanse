@@ -2,50 +2,54 @@
 @inject BabylonService BabylonService
 @implements IDisposable
 
-<div class="radar-container">
-    <div class="radar-frame">
-        <div class="radar-click-surface" @onclick="HandleRadarClick">
-            <svg viewBox="-105 -105 210 210" class="radar-svg">
-                <!-- Background Rings -->
-                <circle cx="0" cy="0" r="100" class="radar-bg" />
-                <circle cx="0" cy="0" r="75" class="radar-ring" />
-                <circle cx="0" cy="0" r="50" class="radar-ring" />
-                <circle cx="0" cy="0" r="25" class="radar-ring" />
-                
-                <!-- Axis lines -->
-                <line x1="-100" y1="0" x2="100" y2="0" class="radar-line" />
-                <line x1="0" y1="-100" x2="0" y2="100" class="radar-line" />
-
-                <!-- Radar Sweep -->
-                <circle cx="0" cy="0" r="100" class="radar-sweep" />
-
-                <!-- Entities -->
-                @foreach (var entity in _entities)
-                {
-                    var x = (entity.Pos[0] - _radarCenterX) * Scale;
-                    var z = (entity.Pos[1] - _radarCenterZ) * Scale;
+@if (Visible)
+{
+    <div class="radar-container">
+        <div class="radar-frame">
+            <div class="radar-click-surface" @onclick="HandleRadarClick">
+                <svg viewBox="-105 -105 210 210" class="radar-svg">
+                    <!-- Background Rings -->
+                    <circle cx="0" cy="0" r="100" class="radar-bg" />
+                    <circle cx="0" cy="0" r="75" class="radar-ring" />
+                    <circle cx="0" cy="0" r="50" class="radar-ring" />
+                    <circle cx="0" cy="0" r="25" class="radar-ring" />
                     
-                    // Only render if within circular bounds
-                    if (Math.Sqrt(x * x + z * z) <= 100)
+                    <!-- Axis lines -->
+                    <line x1="-100" y1="0" x2="100" y2="0" class="radar-line" />
+                    <line x1="0" y1="-100" x2="0" y2="100" class="radar-line" />
+
+                    <!-- Radar Sweep -->
+                    <circle cx="0" cy="0" r="100" class="radar-sweep" />
+
+                    <!-- Entities -->
+                    @foreach (var entity in _entities)
                     {
-                        <circle cx="@x" cy="@z" r="@(GetSize(entity.Type))" class="marker @(GetClass(entity.Type).ToLower())">
-                            <title>@entity.Name (@entity.Type)</title>
-                        </circle>
+                        var x = (entity.Pos[0] - _radarCenterX) * Scale;
+                        var z = (entity.Pos[1] - _radarCenterZ) * Scale;
+                        
+                        // Only render if within circular bounds
+                        if (Math.Sqrt(x * x + z * z) <= 100)
+                        {
+                            <circle cx="@x" cy="@z" r="@(GetSize(entity.Type))" class="marker @(GetClass(entity.Type).ToLower())">
+                                <title>@entity.Name (@entity.Type)</title>
+                            </circle>
+                        }
                     }
-                }
-            </svg>
+                </svg>
+            </div>
+            <div class="radar-label">TACTICAL RADAR</div>
+            
+            <button class="home-button" @onclick="ResetToHome" title="Reset to Ark Station">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/>
+                </svg>
+            </button>
         </div>
-        <div class="radar-label">TACTICAL RADAR</div>
-        
-        <button class="home-button" @onclick="ResetToHome" title="Reset to Ark Station">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor"/>
-            </svg>
-        </button>
     </div>
-</div>
+}
 
 @code {
+    [Parameter] public bool Visible { get; set; } = true;
     [Parameter] public EventCallback<float[]> OnLocationSelected { get; set; }
 
     private List<RadarEntity> _entities = new();

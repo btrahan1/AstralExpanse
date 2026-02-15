@@ -41,13 +41,24 @@
                                     <div class="ship-item @(isSelected ? "selected" : "")" @onclick="() => SelectShip(shipId)">
                                         <div class="ship-info">
                                             <span class="ship-name">@mission.Type.ToString() @(shipId.Split('_')[^1])</span>
-                                            <span class="ship-status @status.ToLower()">@status @(stopRequested ? "(Stopping)" : "")</span>
+                                            @{
+                                                var displayStatus = status;
+                                                if (status == "MovingToAsteroid" && mission.AsteroidId.StartsWith("Planet_")) displayStatus = "MovingToPlanet";
+                                            }
+                                            <span class="ship-status @displayStatus.ToLower()">@displayStatus @(stopRequested ? "(Stopping)" : "")</span>
                                         </div>
                                         @if (mission.State == ShipState.Mining || mission.State == ShipState.Unloading)
                                         {
                                             <div class="cargo-container">
                                                 <div class="cargo-bar" style="width: @(mission.Cargo)%"></div>
                                                 <span class="cargo-text">@(mission.Cargo)%</span>
+                                            </div>
+                                        }
+                                        else if (mission.State == ShipState.Building)
+                                        {
+                                            <div class="cargo-container construction">
+                                                <div class="cargo-bar construction-bar" style="width: @(mission.ConstructionProgress)%"></div>
+                                                <span class="cargo-text construction-text">@(((int)mission.ConstructionProgress))%</span>
                                             </div>
                                         }
                                         <div class="ship-actions">
@@ -60,6 +71,10 @@
                                                 else if (mission.Type == GameUnitType.FighterUnit)
                                                 {
                                                     <button class="btn-action patrol" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Patrol</button>
+                                                }
+                                                else if (mission.Type == GameUnitType.ColonyShipUnit && GameState.Planets.Any(p => p.IsDiscovered && !p.IsColonized))
+                                                {
+                                                    <button class="btn-action colony-btn" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Colonize Planet</button>
                                                 }
                                             }
                                             else if (mission.State != ShipState.Idle && !stopRequested)
@@ -76,11 +91,36 @@
             }
         }
     </div>
+
+    @if (GameState.Planets.Any(p => p.IsDiscovered))
+    {
+        <h3>Planets & Colonies</h3>
+        <div class="planet-list">
+            @foreach (var planet in GameState.Planets.Where(p => p.IsDiscovered))
+            {
+                <div class="planet-item" @onclick="() => SelectPlanet(planet.Id)">
+                    <div class="ship-info">
+                        <span class="ship-name">@planet.Name</span>
+                        <span class="ship-status @(planet.IsColonized ? "scouting" : "building")">
+                            @(planet.IsColonized ? "COLONIZED" : "Habitable")
+                        </span>
+                    </div>
+                    @if (planet.IsColonized)
+                    {
+                        <div class="ship-actions">
+                            <button class="btn-action visit-btn" @onclick:stopPropagation="true" @onclick="() => OnVisitPlanet.InvokeAsync(planet.Id)">VISIT</button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    }
 </div>
 
 @code {
     [Parameter] public string? SelectedShipId { get; set; }
     [Parameter] public EventCallback<string> OnSelectShip { get; set; }
+    [Parameter] public EventCallback<string> OnVisitPlanet { get; set; }
     [Parameter] public EventCallback<string> OnStopMining { get; set; }
     [Parameter] public EventCallback<string> OnStartMission { get; set; }
     [Parameter] public EventCallback<string> OnInitiateTow { get; set; }
@@ -111,6 +151,12 @@
     private async Task InitiateTow(string id)
     {
         await OnInitiateTow.InvokeAsync(id);
+    }
+
+    private async Task SelectPlanet(string id)
+    {
+        // Just center on it in space view
+        await OnSelectShip.InvokeAsync(id);
     }
 }
 
@@ -265,12 +311,16 @@
 
     .ship-status.mining { color: #00ffcc; }
     .ship-status.movingtoasteroid { color: #ffcc00; }
+    .ship-status.movingtoplanet { color: #4488ff; font-weight: bold; }
     .ship-status.returningtostation { color: #4488ff; }
     .ship-status.droppingoff { color: #ff4488; }
     .ship-status.scouting { color: #00ff00; }
     .ship-status.patrolling { color: #ff8800; }
     .ship-status.towing { color: #ffcc00; }
     .ship-status.unloading { color: #ff4488; }
+    .ship-status.building { color: #ffcc00; font-weight: bold; }
+    .ship-status.searching { color: #00ffff; font-style: italic; }
+    .ship-status.colonizing { color: #ffffff; text-shadow: 0 0 5px #fff; }
 
     .cargo-container {
         flex-grow: 1;
@@ -298,6 +348,19 @@
         font-size: 0.6rem;
         color: #00ffcc;
         font-weight: bold;
+    }
+
+    .cargo-container.construction {
+        border-color: rgba(255, 204, 0, 0.3);
+    }
+    
+    .construction-bar {
+        background: linear-gradient(90deg, #ffcc00, #ff8800) !important;
+        box-shadow: 0 0 10px rgba(255, 204, 0, 0.5) !important;
+    }
+
+    .construction-text {
+        color: #ffcc00 !important;
     }
 
     .btn-stop {
@@ -345,7 +408,47 @@
         background: rgba(255, 204, 0, 0.1);
     }
 
+    .btn-action.colony-btn {
+        border-color: rgba(255, 255, 255, 0.6);
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+    }
+
     .btn-action:hover {
         background: rgba(255, 255, 255, 0.2);
+    }
+
+    .planet-list {
+        margin-top: 5px;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+
+    .planet-item {
+        background: rgba(68, 136, 255, 0.1);
+        border: 1px solid rgba(68, 136, 255, 0.3);
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .planet-item:hover {
+        background: rgba(68, 136, 255, 0.2);
+        border-color: #4488ff;
+    }
+
+    .btn-action.visit-btn {
+        border-color: rgba(0, 255, 204, 0.4);
+        color: #00ffcc;
+        background: rgba(0, 255, 204, 0.1);
+        text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
+    }
+
+    .btn-action.visit-btn:hover {
+        background: rgba(0, 255, 204, 0.3);
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
     }
 </style>

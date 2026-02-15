@@ -1,0 +1,190 @@
+{
+"Name": "Planetary_Colony_Alpha",
+"Type": "Procedural",
+"Parts": [
+{
+"Id": "central_command_dome",
+"ParentId": null,
+"Shape": "Sphere",
+"Position": [0, 0, 0],
+"Rotation": [0, 0, 0],
+"Scale": [12, 8, 12],
+"ColorHex": "#EEEEEE",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "hab_module_east",
+"ParentId": null,
+"Shape": "Box",
+"Position": [14, 1.5, 0],
+"Rotation": [0, 0, 0],
+"Scale": [6, 3, 6],
+"ColorHex": "#FFFFFF",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "connector_east",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [8, 1, 0],
+"Rotation": [0, 0, 90],
+"Scale": [1.5, 6, 1.5],
+"ColorHex": "#AAAAAA",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "hab_module_west",
+"ParentId": null,
+"Shape": "Box",
+"Position": [-14, 1.5, 0],
+"Rotation": [0, 0, 0],
+"Scale": [6, 3, 6],
+"ColorHex": "#FFFFFF",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "connector_west",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [-8, 1, 0],
+"Rotation": [0, 0, 90],
+"Scale": [1.5, 6, 1.5],
+"ColorHex": "#AAAAAA",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "hydroponics_bay",
+"ParentId": null,
+"Shape": "Capsule",
+"Position": [0, 1.5, 12],
+"Rotation": [0, 0, 90],
+"Scale": [4, 8, 4],
+"ColorHex": "#AAFFAA",
+"Material": "Glass",
+"Operation": "Union"
+},
+{
+"Id": "connector_north",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0, 1, 7],
+"Rotation": [90, 0, 0],
+"Scale": [1.5, 4, 1.5],
+"ColorHex": "#AAAAAA",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "solar_array_mast",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0, 5, -12],
+"Rotation": [0, 0, 0],
+"Scale": [0.6, 10, 0.6],
+"ColorHex": "#444444",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "solar_panel_left",
+"ParentId": null,
+"Shape": "Box",
+"Position": [5, 8, -12],
+"Rotation": [20, 0, 0],
+"Scale": [8, 0.2, 4],
+"ColorHex": "#001144",
+"Material": "Glow",
+"Operation": "Union"
+},
+{
+"Id": "solar_panel_right",
+"ParentId": null,
+"Shape": "Box",
+"Position": [-5, 8, -12],
+"Rotation": [20, 0, 0],
+"Scale": [8, 0.2, 4],
+"ColorHex": "#001144",
+"Material": "Glow",
+"Operation": "Union"
+},
+{
+"Id": "comm_dish_base",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [14, 4, 0],
+"Rotation": [0, 0, 0],
+"Scale": [0.4, 4, 0.4],
+"ColorHex": "#333333",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "comm_dish_array",
+"ParentId": null,
+"Shape": "Cone",
+"Position": [14, 6.5, 0],
+"Rotation": [150, 45, 0],
+"Scale": [5, 1.2, 5],
+"ColorHex": "#DDDDDD",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "landing_pad_rim",
+"ParentId": null,
+"Shape": "Torus",
+"Position": [0, 0.1, -25],
+"Rotation": [90, 0, 0],
+"Scale": [20, 20, 1],
+"ColorHex": "#FFFF00",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "oxygen_tank_1",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [-12, 2, 8],
+"Rotation": [0, 0, 0],
+"Scale": [2.5, 4, 2.5],
+"ColorHex": "#CC0000",
+"Material": "Metal",
+"Operation": "Union"
+}
+],
+"Timeline": [
+{
+"Time": 0.0,
+"Action": "Rotate",
+"TargetId": "comm_dish_array",
+"Value": [150, 0, 0],
+"Duration": 0.0
+},
+{
+"Time": 5.0,
+"Action": "Rotate",
+"TargetId": "comm_dish_array",
+"Value": [150, 180, 0],
+"Duration": 5.0
+},
+{
+"Time": 0.0,
+"Action": "Color",
+"TargetId": "landing_pad_rim",
+"Value": [1, 1, 0],
+"Duration": 0.5
+},
+{
+"Time": 1.0,
+"Action": "Color",
+"TargetId": "landing_pad_rim",
+"Value": [0.2, 0.2, 0],
+"Duration": 0.5
+}
+]
+}

@@ -1,0 +1,186 @@
+{
+    "Name": "Colony_Ship_Vessel",
+    "Type": "Ship",
+    "Parts": [
+        {
+            "Id": "main_hull",
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                4,
+                12,
+                4
+            ],
+            "ColorHex": "#FFFFFF",
+            "Material": "Metal"
+        },
+        {
+            "Id": "bridge_cap",
+            "Shape": "Box",
+            "Position": [
+                0,
+                6,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                3,
+                2,
+                3
+            ],
+            "ColorHex": "#4488ff",
+            "Material": "Glass"
+        },
+        {
+            "Id": "engine_core",
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                -6,
+                0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                5,
+                2,
+                5
+            ],
+            "ColorHex": "#333333",
+            "Material": "Metal"
+        },
+        {
+            "Id": "engine_glow",
+            "Shape": "Torus",
+            "Position": [
+                0,
+                -7,
+                0
+            ],
+            "Rotation": [
+                90,
+                0,
+                0
+            ],
+            "Scale": [
+                3.5,
+                3.5,
+                0.5
+            ],
+            "ColorHex": "#4488ff",
+            "Material": "Glow"
+        },
+        {
+            "Id": "strut_ne",
+            "Shape": "Box",
+            "Position": [
+                2,
+                -2,
+                2
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                8,
+                1
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal"
+        },
+        {
+            "Id": "strut_nw",
+            "Shape": "Box",
+            "Position": [
+                -2,
+                -2,
+                2
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                8,
+                1
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal"
+        },
+        {
+            "Id": "strut_se",
+            "Shape": "Box",
+            "Position": [
+                2,
+                -2,
+                -2
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                8,
+                1
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal"
+        },
+        {
+            "Id": "strut_sw",
+            "Shape": "Box",
+            "Position": [
+                -2,
+                -2,
+                -2
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                8,
+                1
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal"
+        }
+    ],
+    "Timeline": [
+        {
+            "Action": "Rotate",
+            "TargetId": "engine_glow",
+            "Value": [
+                0,
+                0,
+                360
+            ],
+            "Duration": 2.0
+        }
+    ]
+}

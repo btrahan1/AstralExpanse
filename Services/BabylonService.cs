@@ -46,6 +46,16 @@ public class BabylonService
         await _jsRuntime.InvokeVoidAsync("AstralEngine.setSelected", id);
     }
 
+    public async Task SetSurfaceView(string planetId)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.setSurfaceView", planetId);
+    }
+
+    public async Task SetSpaceView()
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.setSpaceView");
+    }
+
     public async Task AttachToParent(string childId, string parentId, float[]? offset = null)
     {
         await _jsRuntime.InvokeVoidAsync("AstralEngine.attachToParent", childId, parentId, offset ?? new float[] { 0, 0, 5 });

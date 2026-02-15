@@ -5,6 +5,9 @@ window.AstralEngine = {
     camera: null,
     dotNetRef: null,
     selectedId: null,
+    terrain: null,
+    currentPlanetId: null,
+    isSurfaceView: false,
 
     init: function (canvasId, dotNetRef) {
         this.canvas = document.getElementById(canvasId);
@@ -267,7 +270,7 @@ window.AstralEngine = {
 
     getRadarData: function () {
         if (!this.scene) return [];
-        const nodes = this.scene.transformNodes.filter(n => n.metadata && n.metadata.isRoot);
+        const nodes = this.scene.getNodes().filter(n => n.metadata && n.metadata.isRoot && n.isEnabled());
         return nodes.map(n => ({
             id: n.id,
             name: n.metadata.name,
@@ -312,5 +315,72 @@ window.AstralEngine = {
         } else {
             node.dispose();
         }
+    },
+
+    setSurfaceView: function (planetId) {
+        if (!this.scene) return;
+        this.isSurfaceView = true;
+        this.currentPlanetId = planetId;
+
+        // 1. Hide Space Objects
+        this.scene.getNodes().forEach(node => {
+            if (node.metadata && node.metadata.isRoot) {
+                // Hide stations, ships, asteroids
+                if (node.id !== planetId && !node.id.startsWith("Hub_" + planetId)) {
+                    node.setEnabled(false);
+                }
+            }
+        });
+
+        // 2. Setup Terrain (if not already there)
+        if (!this.terrain) {
+            this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 1000, height: 1000 }, this.scene);
+            const terrainMat = new BABYLON.StandardMaterial("terrainMat", this.scene);
+            terrainMat.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.2); // Simple green ground
+            this.terrain.material = terrainMat;
+        }
+
+        const planet = this.scene.getNodeById(planetId);
+        const hub = this.scene.getNodeById("Hub_" + planetId);
+
+        if (planet && hub) {
+            // Position terrain slightly below the hub
+            this.terrain.position = hub.absolutePosition.clone();
+            this.terrain.position.y -= 0.1;
+            this.terrain.setEnabled(true);
+
+            // 3. Update Camera for Surface
+            this.camera.setTarget(hub.absolutePosition);
+            this.camera.radius = 50;
+            this.camera.alpha = Math.PI / 4;
+            this.camera.beta = Math.PI / 3;
+            this.camera.lowerRadiusLimit = 5;
+            this.camera.upperRadiusLimit = 150;
+            this.camera.lowerBetaLimit = 0.1;
+            this.camera.upperBetaLimit = Math.PI / 2.1; // Prevent going below ground
+        }
+    },
+
+    setSpaceView: function () {
+        if (!this.scene) return;
+        this.isSurfaceView = false;
+
+        // 1. Show Space Objects
+        this.scene.getNodes().forEach(node => {
+            if (node.metadata && node.metadata.isRoot) {
+                node.setEnabled(true);
+            }
+        });
+
+        // 2. Hide Terrain
+        if (this.terrain) {
+            this.terrain.setEnabled(false);
+        }
+
+        // 3. Reset Camera
+        this.camera.lowerRadiusLimit = 10;
+        this.camera.upperRadiusLimit = 2000;
+        this.camera.lowerBetaLimit = 0.1;
+        this.camera.upperBetaLimit = Math.PI - 0.1;
     }
 };

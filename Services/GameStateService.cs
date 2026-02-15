@@ -20,6 +20,8 @@ public class ShipMission
     public int Cargo { get; set; } = 0;
     public int MaxCargo { get; set; } = 100;
     public string ParentStationId { get; set; } = "Ark_Colonization_Station";
+    public float ConstructionProgress { get; set; } = 0; // 0-100
+    public float ConstructionTarget { get; set; } = 0; // Total seconds
 }
 
 public class ModelLoadData
@@ -49,6 +51,16 @@ public class AsteroidData
     public int Capacity { get; set; } = 10000;
 }
 
+public class PlanetData
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public float[] Position { get; set; } = new float[3];
+    public bool IsDiscovered { get; set; } = false;
+    public bool IsColonized { get; set; } = false;
+    public string Type { get; set; } = "Terrestrial"; // Could be Earth-like, Desert, etc.
+}
+
 public class GameStateService
 {
     public int Ore { get; set; } = 1000;
@@ -56,6 +68,7 @@ public class GameStateService
     public List<string> Stations { get; set; } = new List<string>();
     public Dictionary<string, float[]> StationPositions { get; set; } = new Dictionary<string, float[]>();
     public List<AsteroidData> Asteroids { get; set; } = new List<AsteroidData>();
+    public List<PlanetData> Planets { get; set; } = new List<PlanetData>();
     public Dictionary<string, ShipMission> ActiveMissions { get; set; } = new Dictionary<string, ShipMission>();
 
     public event Action? OnStateChanged;
@@ -118,6 +131,7 @@ public class GameStateService
         Stations.Clear();
         StationPositions.Clear();
         Asteroids.Clear();
+        Planets.Clear();
         ActiveMissions.Clear();
         Notify();
     }
@@ -130,6 +144,7 @@ public class GameStateService
         Stations = savedState.Stations;
         StationPositions = savedState.StationPositions ?? new Dictionary<string, float[]>();
         Asteroids = savedState.Asteroids ?? new List<AsteroidData>();
+        Planets = savedState.Planets ?? new List<PlanetData>();
         ActiveMissions = savedState.ActiveMissions;
         Notify();
     }
