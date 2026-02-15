@@ -1,0 +1,156 @@
+@using AstralExpanse.Services
+@inject PersistenceService Persistence
+
+<div class="main-menu-overlay">
+    <div class="menu-content">
+        <div class="logo">
+            <span class="logo-top">STEADY</span>
+            <span class="logo-bottom">EXPANSE</span>
+        </div>
+        <div class="subtitle">Command the Ark. Settle the Stars.</div>
+        
+        <div class="button-group">
+            <button class="menu-btn primary" @onclick="() => OnNewGame.InvokeAsync()">
+                NEW COLONIZATION
+            </button>
+            <button class="menu-btn @(_canContinue ? "secondary" : "disabled")" disabled="@(!_canContinue)" @onclick="() => OnContinueGame.InvokeAsync()">
+                @(_canContinue ? "CONTINUE MISSION" : "NO SAVED DATA")
+            </button>
+        </div>
+        
+        <div class="version">v0.3.0 - Persistence Alpha</div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnNewGame { get; set; }
+    [Parameter] public EventCallback OnContinueGame { get; set; }
+    
+    private bool _canContinue = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _canContinue = await Persistence.SaveExists();
+    }
+}
+
+<style>
+    .main-menu-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 10000;
+        background: radial-gradient(circle at center, rgba(16, 24, 48, 0.95) 0%, rgba(5, 10, 20, 1) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .menu-content {
+        text-align: center;
+        animation: fadeIn 1s ease-out;
+    }
+
+    .logo {
+        display: flex;
+        flex-direction: column;
+        line-height: 0.8;
+        margin-bottom: 20px;
+    }
+
+    .logo-top {
+        font-size: 2.5rem;
+        font-weight: 200;
+        letter-spacing: 15px;
+        color: #88ccff;
+        text-shadow: 0 0 20px rgba(136, 204, 255, 0.4);
+    }
+
+    .logo-bottom {
+        font-size: 4rem;
+        font-weight: 800;
+        letter-spacing: 12px;
+        color: #ffffff;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+
+    .subtitle {
+        color: #4488ff;
+        font-size: 1.1rem;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        margin-bottom: 60px;
+        opacity: 0.8;
+    }
+
+    .button-group {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .menu-btn {
+        width: 320px;
+        padding: 18px;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: bold;
+        letter-spacing: 3px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        cursor: pointer;
+        transition: all 0.3s;
+        background: transparent;
+        color: white;
+    }
+
+    .menu-btn.primary {
+        background: linear-gradient(90deg, #4488ff 0%, #00ffcc 100%);
+        border: none;
+        color: #050a14;
+        box-shadow: 0 0 20px rgba(68, 136, 255, 0.3);
+    }
+
+    .menu-btn.primary:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
+    }
+
+    .menu-btn.secondary {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(68, 136, 255, 0.4);
+        color: #4488ff;
+    }
+
+    .menu-btn.secondary:hover {
+        background: rgba(68, 136, 255, 0.1);
+        border-color: #4488ff;
+        color: white;
+        transform: scale(1.05);
+    }
+
+    .menu-btn.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+        color: #666;
+        border-color: #333;
+    }
+
+    .version {
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.8rem;
+        color: #444;
+        letter-spacing: 2px;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>

@@ -3,12 +3,19 @@
 @using AstralExpanse.Components
 @inject BabylonService BabylonService
 @inject GameStateService GameState
+@inject PersistenceService Persistence
+@inject IJSRuntime JSRuntime
 @inject HttpClient Http
 @implements IDisposable
 
 <PageTitle>Astral Expanse</PageTitle>
 
 <Viewport />
+
+@if (!_isGameActive)
+{
+    <MainMenu OnNewGame="HandleNewGame" OnContinueGame="HandleContinueGame" />
+}
 
 @if (_showShipyard)
 {
@@ -23,7 +30,8 @@
 
 <Radar @ref="_radar" OnLocationSelected="HandleRadarLocationSelected" />
 
-<div class="ui-overlay">
+<div class="ui-container" @onkeydown="HandleKeyDown" tabindex="0">
+    <div class="ui-overlay">
     <h1>Astral Expanse</h1>
     <p>Orbiting Ark Colonization Station</p>
     <div class="stats">
@@ -53,6 +61,7 @@
             }
         </div>
     }
+    </div>
 </div>
 
 @code {
@@ -66,6 +75,8 @@
     private bool _isTowingMode = false;
     private string? _towingTargetId;
     private Radar? _radar;
+    private bool _isGameActive = false;
+    private System.Timers.Timer? _saveTimer;
 
     protected override void OnInitialized()
     {
@@ -80,12 +91,105 @@
         {
             await Task.Delay(500);
             
-            // Load Station
-            var stationJson = await Http.GetStringAsync("assets/station.json");
+            // Setup auto-save timer
+            _saveTimer = new System.Timers.Timer(30000); // 30 seconds
+            _saveTimer.Elapsed += async (s, e) => {
+                if (_isGameActive) await Persistence.SaveGame(GameState);
+            };
+            _saveTimer.Enabled = true;
+
+            // Note: Objects are spawned in HandleNewGame or HandleContinueGame
+        }
+    }
+
+    private async Task HandleNewGame()
+    {
+        GameState.ResetState();
+        await Persistence.ClearSave();
+        
+        // Initial setup for new game
+        await Initialize3DScene();
+        
+        _isGameActive = true;
+        await Task.Delay(100); // Wait for render
+        await JSRuntime.InvokeVoidAsync("document.querySelector('.ui-container').focus");
+        StateHasChanged();
+    }
+
+    private async Task HandleContinueGame()
+    {
+        var json = await Persistence.LoadGameJson();
+        if (!string.IsNullOrEmpty(json))
+        {
+            var savedState = System.Text.Json.JsonSerializer.Deserialize<GameStateService>(json);
+            GameState.LoadFromState(savedState);
+        }
+        
+        await Initialize3DScene(isLoad: true);
+        
+        _isGameActive = true;
+        await Task.Delay(100); // Wait for render
+        await JSRuntime.InvokeVoidAsync("document.querySelector('.ui-container').focus");
+        StateHasChanged();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape" && _isGameActive)
+        {
+            await Persistence.SaveGame(GameState);
+            _isGameActive = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Initialize3DScene(bool isLoad = false)
+    {
+        // Load Station
+        var stationJson = await Http.GetStringAsync("assets/station.json");
+        
+        if (!isLoad)
+        {
+            // Initial Ark Station
             await BabylonService.LoadModel(stationJson, id: "Ark_Colonization_Station");
             GameState.RegisterStation("Ark_Colonization_Station");
+            
+            // Initial Asteroid Field
+            var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
+            await BabylonService.SpawnAsteroidField(asteroidJson, 20, 400);
+        }
+        else
+        {
+            // Reconstruct from state
+            foreach (var stationId in GameState.Stations)
+            {
+                var asset = stationId == "Ark_Colonization_Station" ? "station.json" : "substation.json";
+                var json = await Http.GetStringAsync($"assets/{asset}");
+                
+                // For substations, we need their position. 
+                // For now, let's assume we need to expand GameState to hold positions or just use defaults for Ark.
+                // Ark is always at 0,0,0
+                var pos = stationId == "Ark_Colonization_Station" ? new float[] { 0, 0, 0 } : new float[] { 0, 0, 120 }; 
+                await BabylonService.LoadModel(json, pos: pos, id: stationId);
+            }
 
-            // Spawn Asteroid Field
+            foreach (var shipId in GameState.Fleet)
+            {
+                if (GameState.ActiveMissions.TryGetValue(shipId, out var mission))
+                {
+                    var asset = mission.Type switch {
+                        GameUnitType.MinerUnit => "miner.json",
+                        GameUnitType.ScoutUnit => "scout.json",
+                        GameUnitType.FighterUnit => "fighter.json",
+                        GameUnitType.TugboatUnit => "tugboat.json",
+                        _ => "miner.json"
+                    };
+                    var json = await Http.GetStringAsync($"assets/{asset}");
+                    await BabylonService.LoadModel(json, id: shipId);
+                }
+            }
+
+            // Always respawn asteroids for now
             var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
             await BabylonService.SpawnAsteroidField(asteroidJson, 20, 400);
         }
@@ -389,10 +493,21 @@
         GameState.OnStateChanged -= StateHasChanged;
         BabylonService.OnObjectClicked -= HandleObjectClicked;
         BabylonService.OnMoveComplete -= HandleMoveComplete;
+        _saveTimer?.Dispose();
     }
 }
 
 <style>
+    .ui-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        outline: none;
+    }
+
     .ui-overlay {
         position: fixed;
         top: 20px;

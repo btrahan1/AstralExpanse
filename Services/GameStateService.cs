@@ -28,9 +28,9 @@ public class RadarEntity
 public class GameStateService
 {
     public int Ore { get; set; } = 1000;
-    public List<string> Fleet { get; } = new List<string>();
-    public List<string> Stations { get; } = new List<string>();
-    public Dictionary<string, ShipMission> ActiveMissions { get; } = new Dictionary<string, ShipMission>();
+    public List<string> Fleet { get; set; } = new List<string>();
+    public List<string> Stations { get; set; } = new List<string>();
+    public Dictionary<string, ShipMission> ActiveMissions { get; set; } = new Dictionary<string, ShipMission>();
 
     public event Action? OnStateChanged;
 
@@ -67,6 +67,25 @@ public class GameStateService
             return true;
         }
         return false;
+    }
+
+    public void ResetState()
+    {
+        Ore = 1000;
+        Fleet.Clear();
+        Stations.Clear();
+        ActiveMissions.Clear();
+        Notify();
+    }
+
+    public void LoadFromState(GameStateService? savedState)
+    {
+        if (savedState == null) return;
+        Ore = savedState.Ore;
+        Fleet = savedState.Fleet;
+        Stations = savedState.Stations;
+        ActiveMissions = savedState.ActiveMissions;
+        Notify();
     }
 
     private void Notify() => OnStateChanged?.Invoke();
