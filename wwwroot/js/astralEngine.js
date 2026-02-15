@@ -292,5 +292,18 @@ window.AstralEngine = {
     focusElement: function (selector) {
         const el = document.querySelector(selector);
         if (el) el.focus();
+    },
+
+    destroyModel: function (id, effect = "collapse") {
+        const node = this.scene.getNodeById(id);
+        if (!node) return;
+
+        if (effect === "collapse") {
+            BABYLON.Animation.CreateAndStartAnimation("collapse", node, "scaling", 60, 30, node.scaling.clone(), BABYLON.Vector3.Zero(), BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT, null, () => {
+                node.dispose();
+            });
+        } else {
+            node.dispose();
+        }
     }
 };

@@ -27,12 +27,23 @@ public class RadarEntity
     public float[] Pos { get; set; } = new float[2];
 }
 
+public class AsteroidData
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public float[] Position { get; set; } = new float[3];
+    public float[] Rotation { get; set; } = new float[3];
+    public float Scale { get; set; } = 1.0f;
+    public int Capacity { get; set; } = 10000;
+}
+
 public class GameStateService
 {
     public int Ore { get; set; } = 1000;
     public List<string> Fleet { get; set; } = new List<string>();
     public List<string> Stations { get; set; } = new List<string>();
     public Dictionary<string, float[]> StationPositions { get; set; } = new Dictionary<string, float[]>();
+    public List<AsteroidData> Asteroids { get; set; } = new List<AsteroidData>();
     public Dictionary<string, ShipMission> ActiveMissions { get; set; } = new Dictionary<string, ShipMission>();
 
     public event Action? OnStateChanged;
@@ -73,12 +84,28 @@ public class GameStateService
         return false;
     }
 
+    public void DepleteAsteroid(string id, int amount)
+    {
+        var asteroid = Asteroids.Find(a => a.Id == id);
+        if (asteroid != null)
+        {
+            asteroid.Capacity = Math.Max(0, asteroid.Capacity - amount);
+            if (asteroid.Capacity <= 0)
+            {
+                // Note: We might want to remove it from the list only after visual destruction
+                // or keep it in the list with 0 capacity to prevent re-spawning
+            }
+            Notify();
+        }
+    }
+
     public void ResetState()
     {
         Ore = 1000;
         Fleet.Clear();
         Stations.Clear();
         StationPositions.Clear();
+        Asteroids.Clear();
         ActiveMissions.Clear();
         Notify();
     }
@@ -90,6 +117,7 @@ public class GameStateService
         Fleet = savedState.Fleet;
         Stations = savedState.Stations;
         StationPositions = savedState.StationPositions ?? new Dictionary<string, float[]>();
+        Asteroids = savedState.Asteroids ?? new List<AsteroidData>();
         ActiveMissions = savedState.ActiveMissions;
         Notify();
     }

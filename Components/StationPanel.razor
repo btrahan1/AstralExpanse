@@ -19,6 +19,10 @@
                         <span class="station-name">@displayName</span>
                         <span class="station-status">Operational</span>
                     </div>
+                    @if (stationId == "Ark_Colonization_Station")
+                    {
+                        <button class="build-btn" @onclick:stopPropagation="true" @onclick="OpenShipyard">BUILD</button>
+                    }
                 </div>
             }
         }
@@ -28,14 +32,37 @@
 @code {
     [Parameter] public string? SelectedStationId { get; set; }
     [Parameter] public EventCallback<string> OnSelectStation { get; set; }
+    [Parameter] public EventCallback OnOpenShipyard { get; set; }
 
     private async Task SelectStation(string id)
     {
         await OnSelectStation.InvokeAsync(id);
     }
+
+    private async Task OpenShipyard()
+    {
+        await OnOpenShipyard.InvokeAsync();
+    }
 }
 
 <style>
+    .build-btn {
+        background: #00ffcc;
+        color: #101830;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-left: 10px;
+    }
+
+    .build-btn:hover {
+        background: #ffffff;
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+    }
     .station-panel {
         position: fixed;
         top: 440px; /* Below Fleet Panel (400px height + margin) */

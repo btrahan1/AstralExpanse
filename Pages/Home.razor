@@ -28,7 +28,7 @@
 
     <FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" />
 
-    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" />
+    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="() => _showShipyard = true" />
 
     <Radar @ref="_radar" OnLocationSelected="HandleRadarLocationSelected" />
 
@@ -48,6 +48,18 @@
                 <div class="selection-info">
                     Selected: <span class="ship-id">@typeStr @idStr</span>
                 </div>
+            }
+            
+            @if (!string.IsNullOrEmpty(_selectedAsteroidId))
+            {
+                var asteroid = GameState.Asteroids.Find(a => a.Id == _selectedAsteroidId);
+                if (asteroid != null)
+                {
+                    <div class="selection-info asteroid-info">
+                        Target: <span class="ship-id">@asteroid.Name</span><br/>
+                        Capacity: <span class="ore-stat">@asteroid.Capacity.ToString("N0")</span> <span style="font-size: 0.7rem; color: #88ccff;">Ore Remaining</span>
+                    </div>
+                }
             }
             
             @if (_isTowingMode || !string.IsNullOrEmpty(_towingTargetId))
@@ -74,6 +86,7 @@
     private string? _selectedShipId;
     private string? _selectedStationId;
     private string? _targetAsteroidId;
+    private string? _selectedAsteroidId;
     private float[]? _targetAsteroidPos;
     private bool _isTowingMode = false;
     private string? _towingTargetId;
@@ -169,8 +182,7 @@
             GameState.RegisterStation("Ark_Colonization_Station", new float[] { 0, 0, 0 });
             
             // Initial Asteroid Field
-            var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
-            await BabylonService.SpawnAsteroidField(asteroidJson, 20, 400);
+            await SpawnAsteroidField(20, 400);
         }
         else
         {
@@ -200,12 +212,51 @@
                 }
             }
 
-            // Always respawn asteroids for now
+            // Load asteroids from state
             var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
-            await BabylonService.SpawnAsteroidField(asteroidJson, 20, 400);
+            foreach (var asteroid in GameState.Asteroids)
+            {
+                if (asteroid.Capacity > 0)
+                {
+                    await BabylonService.LoadModel(asteroidJson, pos: asteroid.Position, rot: asteroid.Rotation, scale: asteroid.Scale, id: asteroid.Id);
+                }
+            }
 
             // Kick off missions
             await ResumeMissions();
+        }
+    }
+
+    private async Task SpawnAsteroidField(int count, float radius)
+    {
+        var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
+        var rnd = new Random();
+        
+        for (int i = 0; i < count; i++)
+        {
+            float angle = (float)(rnd.NextDouble() * Math.PI * 2);
+            float dist = (float)(rnd.NextDouble() * radius * 0.8 + radius * 0.2);
+            float x = (float)Math.Cos(angle) * dist;
+            float z = (float)Math.Sin(angle) * dist;
+            float y = (float)(rnd.NextDouble() * 40 - 20);
+            
+            var pos = new float[] { x, y, z };
+            var rot = new float[] { (float)rnd.NextDouble() * 6, (float)rnd.NextDouble() * 6, (float)rnd.NextDouble() * 6 };
+            float scale = (float)(rnd.NextDouble() * 0.5 + 0.7);
+            string id = $"Asteroid_{Guid.NewGuid().ToString().Substring(0, 8)}";
+            string name = $"Iron-Rich Asteroid {i + 1:D3}";
+
+            var data = new AsteroidData {
+                Id = id,
+                Name = name,
+                Position = pos,
+                Rotation = rot,
+                Scale = scale,
+                Capacity = 10000
+            };
+            GameState.Asteroids.Add(data);
+            
+            await BabylonService.LoadModel(asteroidJson, pos: pos, rot: rot, scale: scale, id: id);
         }
     }
 
@@ -267,10 +318,26 @@
         if (GameState.ActiveMissions.TryGetValue(id, out var mission))
         {
             await Task.Delay(10000); 
+            
+            // Deplete asteroid
+            if (!string.IsNullOrEmpty(mission.AsteroidId))
+            {
+                GameState.DepleteAsteroid(mission.AsteroidId, 100);
+                
+                var asteroid = GameState.Asteroids.Find(a => a.Id == mission.AsteroidId);
+                if (asteroid != null && asteroid.Capacity <= 0)
+                {
+                    // Visual destruction
+                    await BabylonService.DestroyModel(mission.AsteroidId, "collapse");
+                    if (_selectedAsteroidId == mission.AsteroidId) _selectedAsteroidId = null;
+                }
+            }
+
             mission.State = ShipState.ReturningToStation;
             var target = new float[] { 0, 0, 0 };
             mission.CurrentTarget = target;
-            await BabylonService.MoveModel(id, target, 5.0f);
+            var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+            await BabylonService.MoveModel(id, target, GetMoveDuration(shipPos, target, 20.0f));
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -292,7 +359,8 @@
                 // Restart mining loop
                 mission.State = ShipState.MovingToAsteroid;
                 mission.CurrentTarget = mission.AsteroidPosition;
-                await BabylonService.MoveModel(id, mission.AsteroidPosition, 5.0f);
+                var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+                await BabylonService.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(shipPos, mission.AsteroidPosition, 20.0f));
             }
             await InvokeAsync(StateHasChanged);
         }
@@ -303,13 +371,19 @@
         return (float)Math.Sqrt(Math.Pow(p1[0] - p2[0], 2) + Math.Pow(p1[1] - p2[1], 2) + Math.Pow(p1[2] - p2[2], 2));
     }
 
+    private float GetMoveDuration(float[] start, float[] end, float speed)
+    {
+        float dist = GetDistance(start, end);
+        return Math.Max(0.5f, dist / speed);
+    }
+
     private async void HandleObjectClicked(string name, string id)
     {
         _showMiningMenu = false;
+        _selectedAsteroidId = null;
 
         if (name == "Ark_Colonization_Station")
         {
-            _showShipyard = true;
             _selectedShipId = null;
             _selectedStationId = id;
             await CenterOnObject(id);
@@ -341,13 +415,18 @@
                 StateHasChanged();
             }
         }
-        else if (name == "Iron_Rich_Asteroid" && IsSelectedShipOfType(AstralExpanse.Services.GameUnitType.MinerUnit))
+        else if (name == "Iron_Rich_Asteroid")
         {
-            _targetAsteroidId = id;
-            _targetAsteroidPos = await BabylonService.GetModelPosition(id);
-            _mouseX = 400; 
-            _mouseY = 300;
-            _showMiningMenu = true;
+            _selectedAsteroidId = id;
+            if (IsSelectedShipOfType(AstralExpanse.Services.GameUnitType.MinerUnit))
+            {
+                _targetAsteroidId = id;
+                _targetAsteroidPos = await BabylonService.GetModelPosition(id);
+                _mouseX = 400; 
+                _mouseY = 300;
+                _showMiningMenu = true;
+            }
+            await CenterOnObject(id);
             StateHasChanged();
         }
     }
@@ -376,7 +455,8 @@
         GameState.ActiveMissions[_selectedShipId] = mission;
         _showMiningMenu = false;
 
-        await BabylonService.MoveModel(_selectedShipId, _targetAsteroidPos, 5.0f);
+        var shipPos = await BabylonService.GetModelPosition(_selectedShipId) ?? new float[] { 0, 0, 0 };
+        await BabylonService.MoveModel(_selectedShipId, _targetAsteroidPos, GetMoveDuration(shipPos, _targetAsteroidPos, 20.0f));
     }
 
     private async void HandleMoveComplete(string id)
@@ -386,11 +466,7 @@
             if (mission.State == AstralExpanse.Services.ShipState.MovingToAsteroid && mission.Type == AstralExpanse.Services.GameUnitType.MinerUnit)
             {
                 mission.State = ShipState.Mining;
-                await InvokeAsync(StateHasChanged);
-                await Task.Delay(10000); 
-                
-                mission.State = ShipState.ReturningToStation;
-                await BabylonService.MoveModel(id, new float[] { 0, 0, 0 }, 5.0f);
+                _ = HandleMiningSequence(id);
             }
             else if (mission.State == ShipState.ReturningToStation)
             {
@@ -409,7 +485,8 @@
                 else
                 {
                     mission.State = ShipState.MovingToAsteroid;
-                    await BabylonService.MoveModel(id, mission.AsteroidPosition, 5.0f);
+                    var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+                    await BabylonService.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(shipPos, mission.AsteroidPosition, 20.0f));
                 }
             }
             else if (mission.State == AstralExpanse.Services.ShipState.MovingToAsteroid && mission.Type == AstralExpanse.Services.GameUnitType.TugboatUnit)
@@ -420,7 +497,7 @@
                 await InvokeAsync(StateHasChanged);
                 
                 // Move both to final destination
-                await BabylonService.MoveModel(id, mission.AsteroidPosition, 15.0f);
+                await BabylonService.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(new float[]{0,0,0}, mission.AsteroidPosition, 10.0f)); // Towing is slower
             }
             else if (mission.State == AstralExpanse.Services.ShipState.Towing)
             {
@@ -434,14 +511,16 @@
                 // Move to a new random distant location
                 var randomPos = GetRandomWaypoint(600, 1000);
                 mission.CurrentTarget = randomPos;
-                await BabylonService.MoveModel(id, randomPos, 12.0f);
+                var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+                await BabylonService.MoveModel(id, randomPos, GetMoveDuration(shipPos, randomPos, 40.0f)); // Scouts are fast
             }
             else if (mission.State == ShipState.Patrolling)
             {
                 // Move to a random waypoint nearby
                 var randomPos = GetRandomWaypoint(150, 300);
                 mission.CurrentTarget = randomPos;
-                await BabylonService.MoveModel(id, randomPos, 6.0f);
+                var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+                await BabylonService.MoveModel(id, randomPos, GetMoveDuration(shipPos, randomPos, 30.0f)); // Fighters are nimble
             }
         }
     }
@@ -522,7 +601,8 @@
                 var subPos = await BabylonService.GetModelPosition(_towingTargetId);
                 if (subPos != null)
                 {
-                    await BabylonService.MoveModel(_selectedShipId, subPos, 8.0f);
+                    var shipPos = await BabylonService.GetModelPosition(_selectedShipId) ?? new float[] { 0, 0, 0 };
+                    await BabylonService.MoveModel(_selectedShipId, subPos, GetMoveDuration(shipPos, subPos, 20.0f));
                 }
                 
                 _isTowingMode = false;
@@ -541,14 +621,16 @@
                 mission.State = AstralExpanse.Services.ShipState.Scouting;
                 var waypoint = GetRandomWaypoint(600, 1000);
                 mission.CurrentTarget = waypoint;
-                await BabylonService.MoveModel(id, waypoint, 12.0f);
+                var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+                await BabylonService.MoveModel(id, waypoint, GetMoveDuration(shipPos, waypoint, 40.0f));
             }
             else if (mission.Type == AstralExpanse.Services.GameUnitType.FighterUnit)
             {
                 mission.State = AstralExpanse.Services.ShipState.Patrolling;
                 var waypoint = GetRandomWaypoint(150, 300);
                 mission.CurrentTarget = waypoint;
-                await BabylonService.MoveModel(id, waypoint, 6.0f);
+                var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
+                await BabylonService.MoveModel(id, waypoint, GetMoveDuration(shipPos, waypoint, 30.0f));
             }
             await InvokeAsync(StateHasChanged);
         }
@@ -558,6 +640,7 @@
     {
         _selectedShipId = id;
         _selectedStationId = null;
+        _selectedAsteroidId = null;
         await CenterOnObject(id);
         _showShipyard = false;
         _showMiningMenu = false;
@@ -568,8 +651,9 @@
     {
         _selectedStationId = id;
         _selectedShipId = null;
+        _selectedAsteroidId = null;
         await CenterOnObject(id);
-        _showShipyard = (id == "Ark_Colonization_Station");
+        _showShipyard = false; 
         StateHasChanged();
     }
 
@@ -649,6 +733,8 @@
         border: 1px solid rgba(68, 136, 255, 0.4);
     }
     .ship-id { color: #4488ff; font-weight: bold; }
+    .asteroid-info { border-color: #ff9900; background: rgba(255, 153, 0, 0.1); }
+    .ore-stat { color: #ffcc00; font-weight: bold; }
 
     .guidance-hud {
         margin-top: 15px;

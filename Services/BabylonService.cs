@@ -73,6 +73,11 @@ public class BabylonService
         OnMoveComplete?.Invoke(id);
     }
 
+    public async Task DestroyModel(string id, string effect = "collapse")
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.destroyModel", id, effect);
+    }
+
     public event Action? OnEscapePressed;
 
     [JSInvokable]
