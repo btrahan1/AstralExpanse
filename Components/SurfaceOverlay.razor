@@ -1,0 +1,38 @@
+<div class="surface-overlay">
+    <button class="btn-return" @onclick="OnReturn">RETURN TO SPACE</button>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnReturn { get; set; }
+}
+
+<style>
+    .surface-overlay {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        pointer-events: auto;
+    }
+
+    .btn-return {
+        background: rgba(68, 136, 255, 0.4);
+        border: 2px solid #4488ff;
+        color: white;
+        padding: 12px 30px;
+        border-radius: 30px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 20px rgba(68, 136, 255, 0.4);
+    }
+
+    .btn-return:hover {
+        background: rgba(68, 136, 255, 0.6);
+        transform: scale(1.05);
+        box-shadow: 0 0 30px rgba(68, 136, 255, 0.6);
+    }
+</style>

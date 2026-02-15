@@ -1,0 +1,41 @@
+@using AstralExpanse.Services
+
+@if (!string.IsNullOrEmpty(SelectedShipId) || !string.IsNullOrEmpty(SelectedAsteroidId) || !string.IsNullOrEmpty(SelectedStationId))
+{
+    <div class="selection-info @(SelectedAsteroidId != null ? "asteroid-info" : "")">
+        @if (!string.IsNullOrEmpty(SelectedShipId))
+        {
+            <span>Selected Unit: <span class="ship-id">@SelectedShipId</span></span>
+        }
+        else if (!string.IsNullOrEmpty(SelectedStationId))
+        {
+            <span>Selected Station: <span class="ship-id">@SelectedStationId</span></span>
+        }
+        else if (!string.IsNullOrEmpty(SelectedAsteroidId))
+        {
+            <span>Target: <strong>@SelectedAsteroidId</strong> | Ore: <span class="ore-stat">@AsteroidOre</span></span>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public string? SelectedShipId { get; set; }
+    [Parameter] public string? SelectedAsteroidId { get; set; }
+    [Parameter] public string? SelectedStationId { get; set; }
+    [Parameter] public int AsteroidOre { get; set; }
+}
+
+<style>
+    .selection-info {
+        margin-top: 15px;
+        font-size: 0.8rem;
+        background: rgba(68, 136, 255, 0.2);
+        padding: 5px 10px;
+        border-radius: 4px;
+        display: inline-block;
+        border: 1px solid rgba(68, 136, 255, 0.4);
+    }
+    .ship-id { color: #4488ff; font-weight: bold; }
+    .asteroid-info { border-color: #ff9900; background: rgba(255, 153, 0, 0.1); }
+    .ore-stat { color: #ffcc00; font-weight: bold; }
+</style>

@@ -1,0 +1,16 @@
+@using AstralExpanse.Services
+@inject GameStateService GameState
+
+<div class="stats">
+    <span>Ore: <strong>@GameState.Ore</strong></span>
+</div>
+
+<style>
+    .stats { 
+        font-size: 0.9rem; 
+        margin-top: 10px; 
+    }
+    .stats strong { 
+        color: #00ffcc; 
+    }
+</style>

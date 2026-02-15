@@ -116,13 +116,18 @@ window.AstralEngine = {
 
             if (mesh) {
                 mesh.parent = root;
-                mesh.position = new BABYLON.Vector3(part.Position[0], part.Position[1], part.Position[2]);
+
+                const pPos = part.Position || [0, 0, 0];
+                const pRot = part.Rotation || [0, 0, 0];
+                const pScale = part.Scale || [1, 1, 1];
+
+                mesh.position = new BABYLON.Vector3(pPos[0], pPos[1], pPos[2]);
                 mesh.rotation = new BABYLON.Vector3(
-                    BABYLON.Angle.FromDegrees(part.Rotation[0]).radians(),
-                    BABYLON.Angle.FromDegrees(part.Rotation[1]).radians(),
-                    BABYLON.Angle.FromDegrees(part.Rotation[2]).radians()
+                    BABYLON.Angle.FromDegrees(pRot[0]).radians(),
+                    BABYLON.Angle.FromDegrees(pRot[1]).radians(),
+                    BABYLON.Angle.FromDegrees(pRot[2]).radians()
                 );
-                mesh.scaling = new BABYLON.Vector3(part.Scale[0], part.Scale[1], part.Scale[2]);
+                mesh.scaling = new BABYLON.Vector3(pScale[0], pScale[1], pScale[2]);
 
                 const material = new BABYLON.StandardMaterial("mat_" + part.Id, this.scene);
                 material.diffuseColor = BABYLON.Color3.FromHexString(part.ColorHex);
@@ -322,11 +327,11 @@ window.AstralEngine = {
         this.isSurfaceView = true;
         this.currentPlanetId = planetId;
 
-        // 1. Hide Space Objects
+        // 1. Hide Space Objects (including the planet itself)
         this.scene.getNodes().forEach(node => {
             if (node.metadata && node.metadata.isRoot) {
-                // Hide stations, ships, asteroids
-                if (node.id !== planetId && !node.id.startsWith("Hub_" + planetId)) {
+                // Hide stations, ships, asteroids and the planet orbital model
+                if (!node.id.startsWith("Hub_" + planetId)) {
                     node.setEnabled(false);
                 }
             }
@@ -336,15 +341,14 @@ window.AstralEngine = {
         if (!this.terrain) {
             this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 1000, height: 1000 }, this.scene);
             const terrainMat = new BABYLON.StandardMaterial("terrainMat", this.scene);
-            terrainMat.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.2); // Simple green ground
+            terrainMat.diffuseColor = new BABYLON.Color3(0.35, 0.3, 0.25); // Sandy/Dusty surface
             this.terrain.material = terrainMat;
         }
 
-        const planet = this.scene.getNodeById(planetId);
         const hub = this.scene.getNodeById("Hub_" + planetId);
 
-        if (planet && hub) {
-            // Position terrain slightly below the hub
+        if (hub) {
+            // Position terrain slightly below the hub's absolute base
             this.terrain.position = hub.absolutePosition.clone();
             this.terrain.position.y -= 0.1;
             this.terrain.setEnabled(true);
@@ -357,7 +361,7 @@ window.AstralEngine = {
             this.camera.lowerRadiusLimit = 5;
             this.camera.upperRadiusLimit = 150;
             this.camera.lowerBetaLimit = 0.1;
-            this.camera.upperBetaLimit = Math.PI / 2.1; // Prevent going below ground
+            this.camera.upperBetaLimit = Math.PI / 2.1;
         }
     },
 

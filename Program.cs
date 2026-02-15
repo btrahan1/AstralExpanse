@@ -11,5 +11,7 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddScoped<GameStateService>();
 builder.Services.AddScoped<BabylonService>();
 builder.Services.AddScoped<PersistenceService>();
+builder.Services.AddScoped<MissionService>();
+builder.Services.AddScoped<ConstructionService>();
 
 await builder.Build().RunAsync();
