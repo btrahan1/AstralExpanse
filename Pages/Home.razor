@@ -299,10 +299,10 @@
                     // Restart mining routine
                     _ = HandleMiningSequence(shipId);
                 }
-                else if (mission.State == ShipState.DroppingOff)
+                else if (mission.State == ShipState.Unloading)
                 {
-                    // Restart dropoff routine
-                    _ = HandleDropoffSequence(shipId);
+                    // Restart unloading routine
+                    _ = HandleUnloadingSequence(shipId);
                 }
                 else if (mission.State == ShipState.Towing && !string.IsNullOrEmpty(mission.TowedEntityId))
                 {
@@ -317,7 +317,13 @@
     {
         if (GameState.ActiveMissions.TryGetValue(id, out var mission))
         {
-            await Task.Delay(10000); 
+            mission.Cargo = 0;
+            for (int i = 0; i < 10; i++)
+            {
+                await Task.Delay(1000);
+                mission.Cargo += 10;
+                await InvokeAsync(StateHasChanged);
+            }
             
             // Deplete asteroid
             if (!string.IsNullOrEmpty(mission.AsteroidId))
@@ -342,11 +348,17 @@
         }
     }
 
-    private async Task HandleDropoffSequence(string id)
+    private async Task HandleUnloadingSequence(string id)
     {
         if (GameState.ActiveMissions.TryGetValue(id, out var mission))
         {
-            await Task.Delay(5000);
+            for (int i = 0; i < 5; i++)
+            {
+                await Task.Delay(1000);
+                mission.Cargo -= 20;
+                await InvokeAsync(StateHasChanged);
+            }
+            mission.Cargo = 0;
             GameState.AddOre(100);
             
             if (mission.StopRequested)
@@ -470,24 +482,8 @@
             }
             else if (mission.State == ShipState.ReturningToStation)
             {
-                mission.State = ShipState.DroppingOff;
-                await InvokeAsync(StateHasChanged);
-                await Task.Delay(5000); // Drop off for 5 seconds
-                
-                GameState.AddOre(100);
-                
-                if (mission.StopRequested)
-                {
-                    mission.State = ShipState.Idle;
-                    mission.StopRequested = false;
-                    await InvokeAsync(StateHasChanged);
-                }
-                else
-                {
-                    mission.State = ShipState.MovingToAsteroid;
-                    var shipPos = await BabylonService.GetModelPosition(id) ?? mission.Position;
-                    await BabylonService.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(shipPos, mission.AsteroidPosition, 20.0f));
-                }
+                mission.State = ShipState.Unloading;
+                _ = HandleUnloadingSequence(id);
             }
             else if (mission.State == AstralExpanse.Services.ShipState.MovingToAsteroid && mission.Type == AstralExpanse.Services.GameUnitType.TugboatUnit)
             {

@@ -17,6 +17,8 @@ public class ShipMission
     public bool StopRequested { get; set; } = false;
     public float[] CurrentTarget { get; set; } = new float[3];
     public string? TowedEntityId { get; set; }
+    public int Cargo { get; set; } = 0;
+    public int MaxCargo { get; set; } = 100;
 }
 
 public class RadarEntity
