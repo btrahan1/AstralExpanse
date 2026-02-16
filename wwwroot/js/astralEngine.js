@@ -353,32 +353,26 @@ window.AstralEngine = {
         this.isSurfaceView = true;
         this.currentPlanetId = planetId;
 
-        // 0. Environment Setup (High Noon Clarity)
+        // 0. Environment Setup (Deep Detail Clarity)
         this.scene.clearColor = new BABYLON.Color4(0.6, 0.8, 1.0, 1.0);
-        this.scene.ambientColor = new BABYLON.Color3(1, 1, 1); // Max ambient exposure
-
-        this.scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
-        this.scene.fogStart = 500;
-        this.scene.fogEnd = 5000;
-        this.scene.fogColor = new BABYLON.Color3(0.6, 0.8, 1.0);
+        this.scene.ambientColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Further reduced to bring back building detail
+        this.scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
 
         // Add Sky Light (Ambient Fill)
         let skyLight = this.scene.getLightByName("skyLight");
         if (!skyLight) {
             skyLight = new BABYLON.HemisphericLight("skyLight", new BABYLON.Vector3(0, 1, 0), this.scene);
         }
-        skyLight.intensity = 1.5;
-        skyLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
-        skyLight.groundColor = new BABYLON.Color3(0.5, 0.4, 0.3); // Warm ground bounce
+        skyLight.intensity = 0.7;
+        skyLight.diffuse = new BABYLON.Color3(1, 1, 1);
+        skyLight.groundColor = new BABYLON.Color3(0.5, 0.4, 0.3);
 
-        // Add Sun Light (High Noon)
+        // Add Sun Light
         let sunLight = this.scene.getLightByName("sunLight");
         if (!sunLight) {
             sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(0.1, -1, 0.1), this.scene);
-            sunLight.position = new BABYLON.Vector3(0, 1000, 0);
         }
-        sunLight.intensity = 4.5; // Significant boost for "Full Day" feel
-        sunLight.diffuse = new BABYLON.Color3(1.0, 1.0, 0.9);
+        sunLight.intensity = 0.9;
 
         // 0.1 Find target position
         const hubNode = this.scene.getNodeById("Hub_" + planetId);
@@ -386,65 +380,37 @@ window.AstralEngine = {
         const targetNode = hubNode || planetNode;
         const targetPos = targetNode ? targetNode.absolutePosition.clone() : BABYLON.Vector3.Zero();
 
-        // 1. Hide Space Objects (Disable space-view lights too)
+        // 1. Hide Space Objects
         this.scene.getNodes().forEach(node => {
             if (node.id === "terrain") return;
-
-            // Disable default space lights
-            if (node.id === "light" || node.id === "dirLight") {
-                node.setEnabled(false);
-                return;
-            }
-
             if (node instanceof BABYLON.Light) return;
-
             if (node.metadata && node.metadata.isRoot) {
                 const isHub = node.id.startsWith("Hub_" + planetId);
                 const isBuilding = node.id.startsWith("ColonyBuilding_" + planetId);
-
-                if (!isHub && !isBuilding) {
-                    node.setEnabled(false);
-                } else {
-                    node.setEnabled(true);
-                }
+                node.setEnabled(isHub || isBuilding);
             }
         });
 
-        // 2. Setup Terrain (Bright Sand Style)
+        // 2. Setup Terrain (Fail-Safe "Sandy Beach")
         if (!this.terrain) {
-            this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 10000, height: 10000, subdivisions: 100 }, this.scene);
+            this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 10000, height: 10000, subdivisions: 2 }, this.scene);
             const terrainMat = new BABYLON.StandardMaterial("terrainMat", this.scene);
 
-            const sandTex = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/sand.jpg", this.scene);
-            sandTex.uScale = 80;
-            sandTex.vScale = 80;
-            terrainMat.diffuseTexture = sandTex;
+            // FORCE VISIBILITY: Use pure emissive, unlit color.
+            // This ground will stay bright even if there are ZERO lights in the scene.
+            terrainMat.diffuseColor = new BABYLON.Color3(0, 0, 0); // Ignore diffuse
+            terrainMat.specularColor = new BABYLON.Color3(0, 0, 0);
+            terrainMat.emissiveColor = new BABYLON.Color3(0.85, 0.8, 0.65); // Slightly lowered but still bright
+            terrainMat.disableLighting = true; // Make it independent of lights
 
-            if (BABYLON.NoiseProceduralTexture) {
-                const noiseTexture = new BABYLON.NoiseProceduralTexture("noise", 1024, this.scene);
-                noiseTexture.octaves = 3;
-                noiseTexture.persistence = 0.8;
-                noiseTexture.animationSpeedFactor = 0;
-
-                // Extremely bright "Day" colors (previously these were cycling)
-                noiseTexture.darkColor = new BABYLON.Color3(0.8, 0.7, 0.5); // Bright Tan
-                noiseTexture.brightColor = new BABYLON.Color3(0.9, 0.8, 0.6); // Sunlight reflective
-                terrainMat.ambientTexture = noiseTexture;
-            }
-
-            terrainMat.diffuseColor = new BABYLON.Color3(1.2, 1.2, 1.2); // Overdrive for brightness
-            terrainMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-            terrainMat.emissiveColor = new BABYLON.Color3(0.3, 0.25, 0.2); // Stonger base glow
-            terrainMat.ambientColor = new BABYLON.Color3(1, 1, 1);
             terrainMat.backFaceCulling = false;
-
             this.terrain.material = terrainMat;
         }
 
         // Position ground precisely
         this.terrain.position.x = targetPos.x;
         this.terrain.position.z = targetPos.z;
-        this.terrain.position.y = targetPos.y - (hubNode ? 0.05 : 0.1);
+        this.terrain.position.y = targetPos.y - 0.2;
         this.terrain.setEnabled(true);
 
         // 3. Update Camera
