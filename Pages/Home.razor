@@ -9,6 +9,7 @@
 @inject MissionService Missions
 @inject ConstructionService Construction
 @inject ColonyService Colony
+@inject FarmingService Farming
 @implements IDisposable
 
 <PageTitle>Astral Expanse</PageTitle>
@@ -118,6 +119,7 @@
         await Persistence.ClearSave();
         await Initialize3DScene();
         _isGameActive = true;
+        Farming.StartAutonomousCycle();
         await Task.Delay(100);
         await JSRuntime.InvokeVoidAsync("AstralEngine.focusElement", ".ui-container");
         StateHasChanged();
@@ -139,6 +141,7 @@
         
         // Restart mission loops
         Missions.RestartMissions();
+        Farming.StartAutonomousCycle();
         foreach (var m in GameState.ActiveMissions.Values.Where(m => m.State == ShipState.Building))
         {
             _ = Construction.HandleConstructionSequence(m.ShipId, m.ConstructionTarget);
@@ -388,11 +391,20 @@
     { 
         _isSurfaceView = true; 
         _currentSurfacePlanetId = id; 
+        Farming.CurrentPlanetId = id;
         await BabylonService.SetSurfaceView(id); 
         await Colony.LoadColonyBuildings(id);
         StateHasChanged(); 
     }
-    private async Task ExitSurfaceView() { _isSurfaceView = false; _showColonyMenu = false; await BabylonService.SetSpaceView(); await CenterOnObject("Ark_Colonization_Station"); StateHasChanged(); }
+    private async Task ExitSurfaceView() 
+    { 
+        _isSurfaceView = false; 
+        _showColonyMenu = false; 
+        Farming.CurrentPlanetId = null;
+        await BabylonService.SetSpaceView(); 
+        await CenterOnObject("Ark_Colonization_Station"); 
+        StateHasChanged(); 
+    }
 
     private async Task SyncPositionsToState() { foreach (var id in GameState.ActiveMissions.Keys) { var pos = await BabylonService.GetModelPosition(id); if (pos != null) GameState.ActiveMissions[id].Position = pos; } }
 

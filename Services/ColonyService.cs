@@ -25,6 +25,9 @@ public class ColonyService
         {
             "FarmHouse" => 500,
             "ResearchCenter" => 1200,
+            "WheatField" => 100,
+            "PotatoField" => 150,
+            "CornField" => 200,
             _ => 9999
         };
 
@@ -33,7 +36,7 @@ public class ColonyService
         IsPlacing = true;
         try
         {
-            var asset = type == "FarmHouse" ? "farmhouse.json" : "research_center.json";
+            var asset = GetAssetForType(type);
             var json = await _http.GetStringAsync($"assets/{asset}");
             
             var position = await _babylon.StartPlacement(json);
@@ -55,6 +58,50 @@ public class ColonyService
         return false;
     }
 
+    private string GetAssetForType(string type) => type switch
+    {
+        "FarmHouse" => "farmhouse.json",
+        "ResearchCenter" => "research_center.json",
+        "WheatField" => "wheat_field.json",
+        "PotatoField" => "potato_field.json",
+        "CornField" => "corn_field.json",
+        _ => "unit.json"
+    };
+
+    public async Task<bool> BuildFarmingBot(string planetId)
+    {
+        if (_gameState.Ore < 300) return false;
+
+        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        if (planet == null) return false;
+
+        // Find a FarmHouse to act as the home base
+        var farmhouse = planet.Buildings.Find(b => b.Type == "FarmHouse");
+        if (farmhouse == null) return false;
+
+        _gameState.Ore -= 300;
+        
+        var botId = $"Bot_{planetId}_{System.Guid.NewGuid().ToString()[..4]}";
+        var botPos = new float[] { farmhouse.Position[0] + 5, farmhouse.Position[1], farmhouse.Position[2] + 5 };
+        var bot = new FarmingBot
+        {
+            Id = botId,
+            ParentFarmHouseId = farmhouse.Id,
+            Position = botPos,
+            HomePosition = (float[])botPos.Clone(),
+            CurrentPhase = FarmingPhase.Planting,
+            PhaseProgress = 0
+        };
+
+        planet.Bots.Add(bot);
+        
+        var botJson = await _http.GetStringAsync("assets/farming_bot.json");
+        await _babylon.LoadModel(botJson, bot.Position, scale: 2.5f, id: botId);
+        
+        _gameState.Notify();
+        return true;
+    }
+
     public async Task CancelPlacement()
     {
         await _babylon.CancelPlacement();
@@ -68,13 +115,15 @@ public class ColonyService
 
         foreach (var building in planet.Buildings)
         {
-            // Simple check to avoid double-loading if they are already in the scene
-            // In a more robust system, we would ask Babylon if the ID exists.
-            // For now, we'll assume the caller manages the state or we just check local mission IDs if we had them.
-            // Actually, let's just use the ID. 
-            var asset = building.Type == "FarmHouse" ? "farmhouse.json" : "research_center.json";
+            var asset = GetAssetForType(building.Type);
             var json = await _http.GetStringAsync($"assets/{asset}");
             await _babylon.LoadModel(json, building.Position, id: building.Id);
+        }
+
+        var botJson = await _http.GetStringAsync("assets/farming_bot.json");
+        foreach (var bot in planet.Bots)
+        {
+            await _babylon.LoadModel(botJson, bot.Position, scale: 2.5f, id: bot.Id);
         }
     }
 }

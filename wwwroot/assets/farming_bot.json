@@ -1,0 +1,175 @@
+{
+    "Name": "FarmingBot",
+    "Type": "Procedural",
+    "Parts": [
+        {
+            "Id": "chassis",
+            "Shape": "Box",
+            "Position": [
+                0,
+                0.4,
+                0
+            ],
+            "Scale": [
+                1.5,
+                0.6,
+                1.2
+            ],
+            "ColorHex": "#FFDD44",
+            "Material": "Metal"
+        },
+        {
+            "Id": "wheel_fl",
+            "Shape": "Cylinder",
+            "Position": [
+                0.6,
+                0.2,
+                0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "Scale": [
+                0.4,
+                0.2,
+                0.4
+            ],
+            "ColorHex": "#222222",
+            "Material": "Metal"
+        },
+        {
+            "Id": "wheel_fr",
+            "Shape": "Cylinder",
+            "Position": [
+                0.6,
+                0.2,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "Scale": [
+                0.4,
+                0.2,
+                0.4
+            ],
+            "ColorHex": "#222222",
+            "Material": "Metal"
+        },
+        {
+            "Id": "wheel_bl",
+            "Shape": "Cylinder",
+            "Position": [
+                -0.6,
+                0.2,
+                0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "Scale": [
+                0.4,
+                0.2,
+                0.4
+            ],
+            "ColorHex": "#222222",
+            "Material": "Metal"
+        },
+        {
+            "Id": "wheel_br",
+            "Shape": "Cylinder",
+            "Position": [
+                -0.6,
+                0.2,
+                -0.5
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "Scale": [
+                0.4,
+                0.2,
+                0.4
+            ],
+            "ColorHex": "#222222",
+            "Material": "Metal"
+        },
+        {
+            "Id": "sensor_eye",
+            "Shape": "Sphere",
+            "Position": [
+                0.7,
+                0.6,
+                0
+            ],
+            "Scale": [
+                0.3,
+                0.3,
+                0.3
+            ],
+            "ColorHex": "#00FFFF",
+            "Material": "Glow"
+        },
+        {
+            "Id": "tool_arm",
+            "Shape": "Cylinder",
+            "Position": [
+                0.5,
+                0.8,
+                0.3
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.1,
+                0.6,
+                0.1
+            ],
+            "ColorHex": "#888888",
+            "Material": "Metal"
+        },
+        {
+            "Id": "antenna",
+            "Shape": "Cylinder",
+            "Position": [
+                -0.4,
+                1.5,
+                -0.3
+            ],
+            "Scale": [
+                0.05,
+                1.5,
+                0.05
+            ],
+            "ColorHex": "#333333",
+            "Material": "Metal"
+        },
+        {
+            "Id": "beacon",
+            "Shape": "Sphere",
+            "Position": [
+                -0.4,
+                2.3,
+                -0.3
+            ],
+            "Scale": [
+                0.4,
+                0.4,
+                0.4
+            ],
+            "ColorHex": "#FF0000",
+            "Material": "Glow"
+        }
+    ]
+}

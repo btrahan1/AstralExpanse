@@ -1,0 +1,86 @@
+{
+    "Name": "Potato_Field",
+    "Type": "Procedural",
+    "Parts": [
+        {
+            "Id": "soil_base",
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                10,
+                0.2,
+                10
+            ],
+            "ColorHex": "#442200",
+            "Material": "Metal"
+        },
+        {
+            "Id": "bush_1",
+            "Shape": "Sphere",
+            "Position": [
+                -3,
+                0.5,
+                -3
+            ],
+            "Scale": [
+                1,
+                1,
+                1
+            ],
+            "ColorHex": "#336622",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "bush_2",
+            "Shape": "Sphere",
+            "Position": [
+                3,
+                0.5,
+                3
+            ],
+            "Scale": [
+                1.2,
+                0.8,
+                1.2
+            ],
+            "ColorHex": "#336622",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "bush_3",
+            "Shape": "Sphere",
+            "Position": [
+                -3,
+                0.5,
+                3
+            ],
+            "Scale": [
+                0.9,
+                1.1,
+                1
+            ],
+            "ColorHex": "#336622",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "bush_4",
+            "Shape": "Sphere",
+            "Position": [
+                3,
+                0.5,
+                -3
+            ],
+            "Scale": [
+                1.1,
+                0.9,
+                1.1
+            ],
+            "ColorHex": "#336622",
+            "Material": "Plastic"
+        }
+    ]
+}

@@ -1,6 +1,7 @@
 @using AstralExpanse.Services
 @inject ColonyService Colony
 @inject GameStateService GameState
+@inject BabylonService Babylon
 
 @if (Show)
 {
@@ -10,8 +11,11 @@
             <button class="close-btn" @onclick="OnClose">&times;</button>
         </div>
         
-        <div class="ore-status">
-            ORE: @GameState.Ore
+        <div class="resource-panel">
+            <div class="res-item">ORE: @GameState.Ore</div>
+            <div class="res-item wheat">WHEAT: @GameState.Wheat</div>
+            <div class="res-item potato">POTATO: @GameState.Potato</div>
+            <div class="res-item corn">CORN: @GameState.Corn</div>
         </div>
 
         @if (Colony.IsPlacing)
@@ -24,6 +28,7 @@
         else
         {
             <div class="buildings-list">
+                <div class="section-header">STRUCTURES</div>
                 <div class="building-item">
                     <div class="info">
                         <strong>Tech Farmhouse</strong>
@@ -43,6 +48,74 @@
                         BUILD (1200)
                     </button>
                 </div>
+
+                @{
+                    var planet = GameState.Planets.Find(p => p.Id == PlanetId);
+                    bool hasFarmhouse = planet?.Buildings.Any(b => b.Type == "FarmHouse") ?? false;
+                }
+                <div class="building-item">
+                    <div class="info">
+                        <strong>Farming Bot</strong>
+                        <p>Autonomous drone for field maintenance.</p>
+                    </div>
+                    <button class="build-btn" @onclick='() => BuildBot()' disabled="@(GameState.Ore < 300 || !hasFarmhouse)">
+                        BUILD (300)
+                    </button>
+                </div>
+
+                @if (planet != null && planet.Bots.Any())
+                {
+                    <div class="section-header">BOT STATUS</div>
+                    <div class="bot-status-list">
+                        @foreach (var bot in planet.Bots)
+                        {
+                            <div class="bot-item">
+                                <div class="bot-info">
+                                    <span class="bot-id">@bot.Id.Split('_').Last()</span>
+                                    <button class="locate-btn" @onclick='() => Locate(bot.Id)'>LOCATE</button>
+                                    <span class="bot-phase">@(bot.IsTraveling ? "Traveling..." : bot.CurrentPhase)</span>
+                                </div>
+                                <div class="progress-bg">
+                                    @if (!bot.IsTraveling)
+                                    {
+                                        <div class="progress-fill" style="width: @(bot.PhaseProgress * 100)%"></div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="section-header">AGRICULTURE</div>
+                <div class="building-item">
+                    <div class="info">
+                        <strong>Wheat Field</strong>
+                        <p>Basic grain crop.</p>
+                    </div>
+                    <button class="build-btn" @onclick='() => Build("WheatField")' disabled="@(GameState.Ore < 100)">
+                        PLANT (100)
+                    </button>
+                </div>
+
+                <div class="building-item">
+                    <div class="info">
+                        <strong>Potato Field</strong>
+                        <p>Hardy tubers, high yield.</p>
+                    </div>
+                    <button class="build-btn" @onclick='() => Build("PotatoField")' disabled="@(GameState.Ore < 150)">
+                        PLANT (150)
+                    </button>
+                </div>
+
+                <div class="building-item">
+                    <div class="info">
+                        <strong>Corn Field</strong>
+                        <p>Premium crop for biofuel/food.</p>
+                    </div>
+                    <button class="build-btn" @onclick='() => Build("CornField")' disabled="@(GameState.Ore < 200)">
+                        PLANT (200)
+                    </button>
+                </div>
             </div>
         }
     </div>
@@ -57,6 +130,23 @@
     {
         if (string.IsNullOrEmpty(PlanetId)) return;
         await Colony.BuildBuilding(PlanetId, type);
+    }
+
+    private async Task BuildBot()
+    {
+        if (string.IsNullOrEmpty(PlanetId)) return;
+        await Colony.BuildFarmingBot(PlanetId);
+    }
+
+    private async Task Locate(string botId)
+    {
+        await Babylon.SetCameraTarget(0, 0, 0); // Temporary reset if needed
+        var pos = GameState.Planets.Find(p => p.Id == PlanetId)?.Bots.Find(b => b.Id == botId)?.Position;
+        if (pos != null)
+        {
+            await Babylon.SetCameraTarget(pos[0], pos[1] + 10, pos[2]);
+            await Babylon.SetSelected(botId);
+        }
     }
 }
 
@@ -106,15 +196,37 @@
         cursor: pointer;
     }
 
-    .ore-status {
+    .resource-panel {
         background: rgba(0, 0, 0, 0.3);
-        padding: 8px;
-        border-radius: 6px;
-        text-align: center;
+        padding: 10px;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .res-item {
+        font-size: 0.75rem;
         font-weight: bold;
         color: #ffcc00;
-        margin-bottom: 20px;
-        border: 1px solid rgba(255, 204, 0, 0.2);
+        text-align: center;
+    }
+
+    .res-item.wheat { color: #eedd88; }
+    .res-item.potato { color: #aaaaaa; }
+    .res-item.corn { color: #ffdd00; }
+
+    .section-header {
+        font-size: 0.7rem;
+        font-weight: bold;
+        color: #4488ff;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+        margin-top: 10px;
+        border-left: 3px solid #4488ff;
+        padding-left: 8px;
     }
 
     .building-item {
@@ -206,5 +318,57 @@
         background: #444;
         color: #777;
         cursor: not-allowed;
+    }
+
+    .bot-status-list {
+        margin-bottom: 20px;
+    }
+
+    .bot-item {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(68, 136, 255, 0.2);
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .bot-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        font-weight: bold;
+        margin-bottom: 6px;
+        color: #88ccff;
+    }
+
+    .bot-id { color: #aaaaaa; }
+
+    .progress-bg {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #4488ff;
+        box-shadow: 0 0 10px #4488ff;
+        transition: width 1s linear;
+    }
+
+    .locate-btn {
+        background: rgba(68, 136, 255, 0.3);
+        border: 1px solid #4488ff;
+        color: #fff;
+        font-size: 0.5rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .locate-btn:hover {
+        background: #4488ff;
     }
 </style>

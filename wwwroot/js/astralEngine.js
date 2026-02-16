@@ -219,8 +219,6 @@ window.AstralEngine = {
             return;
         }
 
-        console.log(`AstralEngine: Moving node ${id} to ${targetPos} over ${durationSec}s`);
-
         const target = new BABYLON.Vector3(targetPos[0], targetPos[1], targetPos[2]);
         const dist = BABYLON.Vector3.Distance(node.position, target);
 

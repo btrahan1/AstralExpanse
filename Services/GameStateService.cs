@@ -59,6 +59,27 @@ public class ColonyBuilding
     public float[] Rotation { get; set; } = new float[3];
 }
 
+public enum FarmingPhase
+{
+    Planting,
+    Watering,
+    Fertilizing,
+    Harvesting
+}
+
+public class FarmingBot
+{
+    public string Id { get; set; } = string.Empty;
+    public string ParentFarmHouseId { get; set; } = string.Empty;
+    public float[] Position { get; set; } = new float[3];
+    public string? CurrentTargetFieldId { get; set; }
+    public FarmingPhase CurrentPhase { get; set; } = FarmingPhase.Planting;
+    public float PhaseProgress { get; set; } = 0; // 0 to 1
+    public float[] HomePosition { get; set; } = new float[3];
+    public bool IsTraveling { get; set; } = false;
+    public string? LastTargetFieldId { get; set; }
+}
+
 public class PlanetData
 {
     public string Id { get; set; } = string.Empty;
@@ -68,6 +89,7 @@ public class PlanetData
     public bool IsColonized { get; set; } = false;
     public string Type { get; set; } = "Terrestrial";
     public List<ColonyBuilding> Buildings { get; set; } = new List<ColonyBuilding>();
+    public List<FarmingBot> Bots { get; set; } = new List<FarmingBot>();
 }
 
 public class GameStateService
@@ -79,6 +101,10 @@ public class GameStateService
     public List<AsteroidData> Asteroids { get; set; } = new List<AsteroidData>();
     public List<PlanetData> Planets { get; set; } = new List<PlanetData>();
     public Dictionary<string, ShipMission> ActiveMissions { get; set; } = new Dictionary<string, ShipMission>();
+
+    public int Wheat { get; set; } = 0;
+    public int Potato { get; set; } = 0;
+    public int Corn { get; set; } = 0;
 
     public event Action? OnStateChanged;
 
@@ -164,6 +190,9 @@ public class GameStateService
         Asteroids.Clear();
         Planets.Clear();
         ActiveMissions.Clear();
+        Wheat = 0;
+        Potato = 0;
+        Corn = 0;
         Notify();
     }
 
@@ -177,6 +206,9 @@ public class GameStateService
         Asteroids = savedState.Asteroids ?? new List<AsteroidData>();
         Planets = savedState.Planets ?? new List<PlanetData>();
         ActiveMissions = savedState.ActiveMissions;
+        Wheat = savedState.Wheat;
+        Potato = savedState.Potato;
+        Corn = savedState.Corn;
         Notify();
     }
 

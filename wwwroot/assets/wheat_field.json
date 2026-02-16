@@ -1,0 +1,150 @@
+{
+    "Name": "Wheat_Field",
+    "Type": "Procedural",
+    "Parts": [
+        {
+            "Id": "soil_base",
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                10,
+                0.2,
+                10
+            ],
+            "ColorHex": "#553311",
+            "Material": "Metal"
+        },
+        {
+            "Id": "stalk_1",
+            "Shape": "Cylinder",
+            "Position": [
+                -2,
+                1,
+                -2
+            ],
+            "Scale": [
+                0.1,
+                2,
+                0.1
+            ],
+            "ColorHex": "#EEDD88",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "head_1",
+            "Shape": "Box",
+            "Position": [
+                -2,
+                2.1,
+                -2
+            ],
+            "Scale": [
+                0.2,
+                0.4,
+                0.2
+            ],
+            "ColorHex": "#CCAA55",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "stalk_2",
+            "Shape": "Cylinder",
+            "Position": [
+                2,
+                1,
+                2
+            ],
+            "Scale": [
+                0.1,
+                2,
+                0.1
+            ],
+            "ColorHex": "#EEDD88",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "head_2",
+            "Shape": "Box",
+            "Position": [
+                2,
+                2.1,
+                2
+            ],
+            "Scale": [
+                0.2,
+                0.4,
+                0.2
+            ],
+            "ColorHex": "#CCAA55",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "stalk_3",
+            "Shape": "Cylinder",
+            "Position": [
+                -2,
+                1,
+                2
+            ],
+            "Scale": [
+                0.1,
+                2,
+                0.1
+            ],
+            "ColorHex": "#EEDD88",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "head_3",
+            "Shape": "Box",
+            "Position": [
+                -2,
+                2.1,
+                2
+            ],
+            "Scale": [
+                0.2,
+                0.4,
+                0.2
+            ],
+            "ColorHex": "#CCAA55",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "stalk_4",
+            "Shape": "Cylinder",
+            "Position": [
+                2,
+                1,
+                -2
+            ],
+            "Scale": [
+                0.1,
+                2,
+                0.1
+            ],
+            "ColorHex": "#EEDD88",
+            "Material": "Plastic"
+        },
+        {
+            "Id": "head_4",
+            "Shape": "Box",
+            "Position": [
+                2,
+                2.1,
+                -2
+            ],
+            "Scale": [
+                0.2,
+                0.4,
+                0.2
+            ],
+            "ColorHex": "#CCAA55",
+            "Material": "Plastic"
+        }
+    ]
+}
