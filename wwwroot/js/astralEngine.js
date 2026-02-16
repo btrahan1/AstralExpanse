@@ -353,9 +353,9 @@ window.AstralEngine = {
         this.isSurfaceView = true;
         this.currentPlanetId = planetId;
 
-        // 0. Environment Setup (Deep Detail Clarity)
+        // 0. Environment Setup (Balanced Detail)
         this.scene.clearColor = new BABYLON.Color4(0.6, 0.8, 1.0, 1.0);
-        this.scene.ambientColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Further reduced to bring back building detail
+        this.scene.ambientColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Reduced to prevent building washout
         this.scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
 
         // Add Sky Light (Ambient Fill)
@@ -363,7 +363,7 @@ window.AstralEngine = {
         if (!skyLight) {
             skyLight = new BABYLON.HemisphericLight("skyLight", new BABYLON.Vector3(0, 1, 0), this.scene);
         }
-        skyLight.intensity = 0.3;
+        skyLight.intensity = 0.2;
         skyLight.diffuse = new BABYLON.Color3(1, 1, 1);
         skyLight.groundColor = new BABYLON.Color3(0.5, 0.4, 0.3);
 
@@ -372,7 +372,7 @@ window.AstralEngine = {
         if (!sunLight) {
             sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(0.1, -1, 0.1), this.scene);
         }
-        sunLight.intensity = 0.3;
+        sunLight.intensity = 0.2;
 
         // 0.1 Find target position
         const hubNode = this.scene.getNodeById("Hub_" + planetId);
@@ -410,9 +410,9 @@ window.AstralEngine = {
                 noiseTexture.refreshRate = -1; // Static refresh to prevent flicker
 
                 terrainMat.emissiveTexture = noiseTexture;
-                terrainMat.emissiveColor = new BABYLON.Color3(1, 1, 1); // Pass-through for texture
+                terrainMat.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7); // Moderated intensity
             } else {
-                terrainMat.emissiveColor = new BABYLON.Color3(0.85, 0.8, 0.65);
+                terrainMat.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.6);
             }
 
             terrainMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
