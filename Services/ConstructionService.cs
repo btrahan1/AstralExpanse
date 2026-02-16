@@ -83,9 +83,7 @@ public class ConstructionService
                 await Task.Delay((int)(interval * 1000));
                 elapsed += interval;
                 mission.ConstructionProgress = Math.Min(100, (elapsed / durationSeconds) * 100);
-                
-                // We don't necessarily need to trigger state change here if UI binds directly to mission object
-                // but let's notify via GameState if needed.
+                _gameState.Notify();
             }
 
             if (mission.ConstructionProgress >= 100)

@@ -1,0 +1,157 @@
+{
+"Name": "Colony_Research_Center",
+"Type": "Procedural",
+"Parts": [
+{
+"Id": "foundation_base",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0.0, 0.1, 0.0],
+"Rotation": [0, 0, 0],
+"Scale": [14.0, 0.2, 14.0],
+"ColorHex": "#2C2C2C",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "central_core",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0.0, 3.5, 0.0],
+"Rotation": [0, 0, 0],
+"Scale": [5.0, 7.0, 5.0],
+"ColorHex": "#FFFFFF",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "lab_wing_front",
+"ParentId": null,
+"Shape": "Box",
+"Position": [0.0, 2.0, 4.5],
+"Rotation": [0, 0, 0],
+"Scale": [4.0, 4.0, 6.0],
+"ColorHex": "#E0E0E0",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "lab_wing_left",
+"ParentId": null,
+"Shape": "Box",
+"Position": [3.9, 2.0, -2.25],
+"Rotation": [0, 120, 0],
+"Scale": [4.0, 4.0, 6.0],
+"ColorHex": "#E0E0E0",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "lab_wing_right",
+"ParentId": null,
+"Shape": "Box",
+"Position": [-3.9, 2.0, -2.25],
+"Rotation": [0, -120, 0],
+"Scale": [4.0, 4.0, 6.0],
+"ColorHex": "#E0E0E0",
+"Material": "Plastic",
+"Operation": "Union"
+},
+{
+"Id": "observation_dome",
+"ParentId": null,
+"Shape": "Sphere",
+"Position": [0.0, 7.0, 0.0],
+"Rotation": [0, 0, 0],
+"Scale": [4.5, 3.0, 4.5],
+"ColorHex": "#88CCFF",
+"Material": "Glass",
+"Operation": "Union"
+},
+{
+"Id": "sensor_mast",
+"ParentId": null,
+"Shape": "Cylinder",
+"Position": [0.0, 9.5, 0.0],
+"Rotation": [0, 0, 0],
+"Scale": [0.3, 3.0, 0.3],
+"ColorHex": "#444444",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "radar_dish",
+"ParentId": null,
+"Shape": "Cone",
+"Position": [0.0, 11.0, 0.5],
+"Rotation": [90, 0, 0],
+"Scale": [2.5, 0.6, 2.5],
+"ColorHex": "#CCCCCC",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "power_conduit_1",
+"ParentId": null,
+"Shape": "Capsule",
+"Position": [2.0, 0.3, 2.0],
+"Rotation": [0, 45, 90],
+"Scale": [0.4, 4.0, 0.4],
+"ColorHex": "#00AAFF",
+"Material": "Glow",
+"Operation": "Union"
+},
+{
+"Id": "entrance_ramp",
+"ParentId": null,
+"Shape": "Box",
+"Position": [0.0, 0.1, 7.5],
+"Rotation": [-10, 0, 0],
+"Scale": [3.0, 0.2, 3.0],
+"ColorHex": "#333333",
+"Material": "Metal",
+"Operation": "Union"
+},
+{
+"Id": "blue_accent_light",
+"ParentId": null,
+"Shape": "Box",
+"Position": [0.0, 4.0, 7.51],
+"Rotation": [0, 0, 0],
+"Scale": [1.5, 0.1, 0.1],
+"ColorHex": "#00FFFF",
+"Material": "Glow",
+"Operation": "Union"
+}
+],
+"Timeline": [
+{
+"Time": 0.0,
+"Action": "Rotate",
+"TargetId": "radar_dish",
+"Value": [90, 0, 0],
+"Duration": 0.0
+},
+{
+"Time": 0.0,
+"Action": "Rotate",
+"TargetId": "radar_dish",
+"Value": [90, 360, 0],
+"Duration": 8.0
+},
+{
+"Time": 0.0,
+"Action": "Color",
+"TargetId": "blue_accent_light",
+"Value": [0, 1, 1],
+"Duration": 1.0
+},
+{
+"Time": 1.0,
+"Action": "Color",
+"TargetId": "blue_accent_light",
+"Value": [0, 0.2, 0.5],
+"Duration": 1.0
+}
+]
+}

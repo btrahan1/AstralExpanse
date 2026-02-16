@@ -51,6 +51,14 @@ public class AsteroidData
     public int Capacity { get; set; } = 10000;
 }
 
+public class ColonyBuilding
+{
+    public string Id { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty; // "FarmHouse", "ResearchCenter"
+    public float[] Position { get; set; } = new float[3];
+    public float[] Rotation { get; set; } = new float[3];
+}
+
 public class PlanetData
 {
     public string Id { get; set; } = string.Empty;
@@ -58,7 +66,8 @@ public class PlanetData
     public float[] Position { get; set; } = new float[3];
     public bool IsDiscovered { get; set; } = false;
     public bool IsColonized { get; set; } = false;
-    public string Type { get; set; } = "Terrestrial"; // Could be Earth-like, Desert, etc.
+    public string Type { get; set; } = "Terrestrial";
+    public List<ColonyBuilding> Buildings { get; set; } = new List<ColonyBuilding>();
 }
 
 public class GameStateService
@@ -109,6 +118,28 @@ public class GameStateService
         return false;
     }
 
+    public bool TryBuildColonyBuilding(string planetId, string buildingType, int cost, float[] pos)
+    {
+        if (Ore >= cost)
+        {
+            var planet = Planets.Find(p => p.Id == planetId);
+            if (planet != null)
+            {
+                Ore -= cost;
+                var buildingId = $"{buildingType}_{Guid.NewGuid().ToString()[..8]}";
+                planet.Buildings.Add(new ColonyBuilding 
+                { 
+                    Id = buildingId, 
+                    Type = buildingType, 
+                    Position = pos 
+                });
+                Notify();
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void DepleteAsteroid(string id, int amount)
     {
         var asteroid = Asteroids.Find(a => a.Id == id);
@@ -149,5 +180,5 @@ public class GameStateService
         Notify();
     }
 
-    private void Notify() => OnStateChanged?.Invoke();
+    public void Notify() => OnStateChanged?.Invoke();
 }

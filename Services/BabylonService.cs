@@ -7,6 +7,7 @@ public class BabylonService
 {
     private readonly IJSRuntime _jsRuntime;
     private DotNetObjectReference<BabylonService>? _objRef;
+    private TaskCompletionSource<float[]?>? _placementTcs;
 
     public event Action<string, string>? OnObjectClicked;
 
@@ -106,6 +107,26 @@ public class BabylonService
     public void OnObjectPicked(string name, string id)
     {
         OnObjectClicked?.Invoke(name, id);
+    }
+
+    public async Task<float[]?> StartPlacement(string json)
+    {
+        _objRef ??= DotNetObjectReference.Create(this);
+        _placementTcs = new TaskCompletionSource<float[]?>();
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.startPlacement", json, _objRef);
+        return await _placementTcs.Task;
+    }
+
+    public async Task CancelPlacement()
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.cancelPlacement");
+        _placementTcs?.TrySetResult(null);
+    }
+
+    [JSInvokable]
+    public void FinalizePlacement(float[] position)
+    {
+        _placementTcs?.TrySetResult(position);
     }
 
     public void Dispose()

@@ -8,6 +8,9 @@ window.AstralEngine = {
     terrain: null,
     currentPlanetId: null,
     isSurfaceView: false,
+    blueprintMesh: null,
+    isPlacing: false,
+    dotNetHelper: null,
 
     init: function (canvasId, dotNetRef) {
         this.canvas = document.getElementById(canvasId);
@@ -75,7 +78,7 @@ window.AstralEngine = {
 
     loadProceduralModel: function (jsonData, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0], id = null) {
         if (!this.scene) return;
-        const modelData = JSON.parse(jsonData);
+        const modelData = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
         const finalId = id || (modelData.Name + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000));
         const root = new BABYLON.TransformNode(finalId, this.scene);
         root.id = finalId;
@@ -169,7 +172,7 @@ window.AstralEngine = {
             });
         }
 
-        return id;
+        return finalId;
     },
 
     loadModels: function (models) {
@@ -211,10 +214,29 @@ window.AstralEngine = {
 
     moveModel: function (id, targetPos, durationSec) {
         const node = this.scene.getNodeById(id);
-        if (!node) return;
+        if (!node) {
+            console.warn(`AstralEngine: moveModel failed, node not found: ${id}`);
+            return;
+        }
+
+        console.log(`AstralEngine: Moving node ${id} to ${targetPos} over ${durationSec}s`);
 
         const target = new BABYLON.Vector3(targetPos[0], targetPos[1], targetPos[2]);
+        const dist = BABYLON.Vector3.Distance(node.position, target);
+
+        if (dist < 0.1) {
+            node.position = target;
+            if (this.dotNetRef) this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id);
+            return;
+        }
+
         const frameCount = 60 * durationSec;
+
+        if (isNaN(frameCount) || frameCount <= 0) {
+            node.position = target;
+            if (this.dotNetRef) this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id);
+            return;
+        }
 
         // Position Animation
         const posAnim = new BABYLON.Animation("posAnim", "position", 60, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -224,17 +246,23 @@ window.AstralEngine = {
         ]);
 
         // Rotation Animation to look at target
-        const lookAtMatrix = BABYLON.Matrix.LookAtLH(node.position, target, BABYLON.Vector3.Up());
-        const lookAtQuat = BABYLON.Quaternion.FromRotationMatrix(lookAtMatrix.invert());
-        const lookAtRot = lookAtQuat.toEulerAngles();
+        // Prevent gimbal lock/NaN when looking straight up/down or at same spot
+        const diff = target.subtract(node.position);
+        if (Math.abs(diff.x) > 0.01 || Math.abs(diff.z) > 0.01) {
+            const lookAtMatrix = BABYLON.Matrix.LookAtLH(node.position, target, BABYLON.Vector3.Up());
+            const lookAtQuat = BABYLON.Quaternion.FromRotationMatrix(lookAtMatrix.invert());
+            const lookAtRot = lookAtQuat.toEulerAngles();
 
-        const rotAnim = new BABYLON.Animation("rotAnim", "rotation", 60, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
-        rotAnim.setKeys([
-            { frame: 0, value: node.rotation.clone() },
-            { frame: Math.min(20, frameCount), value: lookAtRot }
-        ]);
+            const rotAnim = new BABYLON.Animation("rotAnim", "rotation", 60, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
+            rotAnim.setKeys([
+                { frame: 0, value: node.rotation.clone() },
+                { frame: Math.min(20, frameCount), value: lookAtRot }
+            ]);
+            node.animations = [posAnim, rotAnim];
+        } else {
+            node.animations = [posAnim];
+        }
 
-        node.animations = [posAnim, rotAnim];
         this.scene.beginAnimation(node, 0, frameCount, false, 1, () => {
             if (this.dotNetRef) {
                 this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id);
@@ -327,64 +355,205 @@ window.AstralEngine = {
         this.isSurfaceView = true;
         this.currentPlanetId = planetId;
 
-        // 1. Hide Space Objects (including the planet itself)
+        // 0. Environment Setup (High Noon Clarity)
+        this.scene.clearColor = new BABYLON.Color4(0.6, 0.8, 1.0, 1.0);
+        this.scene.ambientColor = new BABYLON.Color3(1, 1, 1); // Max ambient exposure
+
+        this.scene.fogMode = BABYLON.Scene.FOGMODE_LINEAR;
+        this.scene.fogStart = 500;
+        this.scene.fogEnd = 5000;
+        this.scene.fogColor = new BABYLON.Color3(0.6, 0.8, 1.0);
+
+        // Add Sky Light (Ambient Fill)
+        let skyLight = this.scene.getLightByName("skyLight");
+        if (!skyLight) {
+            skyLight = new BABYLON.HemisphericLight("skyLight", new BABYLON.Vector3(0, 1, 0), this.scene);
+        }
+        skyLight.intensity = 1.0;
+        skyLight.diffuse = new BABYLON.Color3(1.0, 1.0, 1.0);
+        skyLight.groundColor = new BABYLON.Color3(0.5, 0.4, 0.3); // Warm ground bounce
+
+        // Add Sun Light (High Noon)
+        let sunLight = this.scene.getLightByName("sunLight");
+        if (!sunLight) {
+            sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(0.1, -1, 0.1), this.scene);
+            sunLight.position = new BABYLON.Vector3(0, 1000, 0);
+        }
+        sunLight.intensity = 3.0; // Significant boost for "Full Day" feel
+        sunLight.diffuse = new BABYLON.Color3(1.0, 1.0, 0.9);
+
+        // 0.1 Find target position
+        const hubNode = this.scene.getNodeById("Hub_" + planetId);
+        const planetNode = this.scene.getNodeById(planetId);
+        const targetNode = hubNode || planetNode;
+        const targetPos = targetNode ? targetNode.absolutePosition.clone() : BABYLON.Vector3.Zero();
+
+        // 1. Hide Space Objects (Disable space-view lights too)
         this.scene.getNodes().forEach(node => {
+            if (node.id === "terrain") return;
+
+            // Disable default space lights
+            if (node.id === "light" || node.id === "dirLight") {
+                node.setEnabled(false);
+                return;
+            }
+
+            if (node instanceof BABYLON.Light) return;
+
             if (node.metadata && node.metadata.isRoot) {
-                // Hide stations, ships, asteroids and the planet orbital model
-                if (!node.id.startsWith("Hub_" + planetId)) {
+                const isHub = node.id.startsWith("Hub_" + planetId);
+                const isBuilding = node.id.startsWith("ColonyBuilding_" + planetId);
+
+                if (!isHub && !isBuilding) {
                     node.setEnabled(false);
+                } else {
+                    node.setEnabled(true);
                 }
             }
         });
 
-        // 2. Setup Terrain (if not already there)
+        // 2. Setup Terrain (Bright Sand Style)
         if (!this.terrain) {
-            this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 1000, height: 1000 }, this.scene);
+            this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 10000, height: 10000, subdivisions: 100 }, this.scene);
             const terrainMat = new BABYLON.StandardMaterial("terrainMat", this.scene);
-            terrainMat.diffuseColor = new BABYLON.Color3(0.35, 0.3, 0.25); // Sandy/Dusty surface
+
+            const sandTex = new BABYLON.Texture("https://www.babylonjs-playground.com/textures/sand.jpg", this.scene);
+            sandTex.uScale = 80;
+            sandTex.vScale = 80;
+            terrainMat.diffuseTexture = sandTex;
+
+            if (BABYLON.NoiseProceduralTexture) {
+                const noiseTexture = new BABYLON.NoiseProceduralTexture("noise", 1024, this.scene);
+                noiseTexture.octaves = 3;
+                noiseTexture.persistence = 0.8;
+                noiseTexture.animationSpeedFactor = 0;
+
+                // Extremely bright "Day" colors (previously these were cycling)
+                noiseTexture.darkColor = new BABYLON.Color3(0.8, 0.7, 0.5); // Bright Tan
+                noiseTexture.brightColor = new BABYLON.Color3(0.9, 0.8, 0.6); // Sunlight reflective
+                terrainMat.ambientTexture = noiseTexture;
+            }
+
+            terrainMat.diffuseColor = new BABYLON.Color3(1.2, 1.2, 1.2); // Overdrive for brightness
+            terrainMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            terrainMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.1); // Stronger base glow
+            terrainMat.ambientColor = new BABYLON.Color3(1, 1, 1);
+            terrainMat.backFaceCulling = false;
+
             this.terrain.material = terrainMat;
         }
 
-        const hub = this.scene.getNodeById("Hub_" + planetId);
+        // Position ground precisely
+        this.terrain.position.x = targetPos.x;
+        this.terrain.position.z = targetPos.z;
+        this.terrain.position.y = targetPos.y - (hubNode ? 0.05 : 0.1);
+        this.terrain.setEnabled(true);
 
-        if (hub) {
-            // Position terrain slightly below the hub's absolute base
-            this.terrain.position = hub.absolutePosition.clone();
-            this.terrain.position.y -= 0.1;
-            this.terrain.setEnabled(true);
+        // 3. Update Camera
+        this.camera.setTarget(targetPos);
+        this.camera.radius = 80;
+        this.camera.alpha = Math.PI / 4;
+        this.camera.beta = Math.PI / 3.5;
+        this.camera.lowerRadiusLimit = 5;
+        this.camera.upperRadiusLimit = 1000;
+        this.camera.lowerBetaLimit = 0.1;
+        this.camera.upperBetaLimit = Math.PI / 2.1;
+    },
 
-            // 3. Update Camera for Surface
-            this.camera.setTarget(hub.absolutePosition);
-            this.camera.radius = 50;
-            this.camera.alpha = Math.PI / 4;
-            this.camera.beta = Math.PI / 3;
-            this.camera.lowerRadiusLimit = 5;
-            this.camera.upperRadiusLimit = 150;
-            this.camera.lowerBetaLimit = 0.1;
-            this.camera.upperBetaLimit = Math.PI / 2.1;
+    startPlacement: function (json, dotNetHelper) {
+        this.dotNetHelper = dotNetHelper;
+        this.cancelPlacement();
+
+        try {
+            const data = JSON.parse(json);
+            const placementId = "blueprint_" + Date.now();
+            this.loadProceduralModel(data, [0, -100, 0], 1.0, [0, 0, 0], placementId);
+            this.blueprintMesh = this.scene.getNodeById(placementId);
+
+            this.blueprintMesh.getChildMeshes().forEach(m => {
+                if (m.material) {
+                    m.material = m.material.clone("hologramMat");
+                    m.material.alpha = 0.5;
+                    m.material.emissiveColor = new BABYLON.Color3(0, 0.5, 1);
+                }
+            });
+
+            this.isPlacing = true;
+
+            this.scene.onPointerMove = (evt) => {
+                if (!this.isPlacing || !this.blueprintMesh) return;
+                const pick = this.scene.pick(this.scene.pointerX, this.scene.pointerY, (m) => m.id === "terrain");
+                if (pick.hit) {
+                    this.blueprintMesh.position = pick.pickedPoint;
+                }
+            };
+
+            this.scene.onPointerDown = (evt) => {
+                if (!this.isPlacing || !this.blueprintMesh) return;
+                if (evt.button === 0) { // Left click
+                    const pos = [this.blueprintMesh.position.x, this.blueprintMesh.position.y, this.blueprintMesh.position.z];
+                    this.isPlacing = false;
+                    this.dotNetHelper.invokeMethodAsync('FinalizePlacement', pos);
+                    this.cancelPlacement();
+                }
+            };
+        } catch (e) {
+            console.error("Placement error:", e);
         }
+    },
+
+    cancelPlacement: function () {
+        this.isPlacing = false;
+        if (this.blueprintMesh) {
+            this.blueprintMesh.dispose();
+            this.blueprintMesh = null;
+        }
+        this.scene.onPointerMove = null;
+        this.scene.onPointerDown = null;
     },
 
     setSpaceView: function () {
         if (!this.scene) return;
         this.isSurfaceView = false;
 
+        // 0. Reset Environment
+        this.scene.clearColor = new BABYLON.Color4(0.01, 0.01, 0.03, 1);
+        this.scene.ambientColor = new BABYLON.Color3(0, 0, 0);
+        this.scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
+
+        const skyLight = this.scene.getLightByName("skyLight");
+        if (skyLight) skyLight.dispose();
+
+        const sunLight = this.scene.getLightByName("sunLight");
+        if (sunLight) sunLight.dispose();
+
         // 1. Show Space Objects
         this.scene.getNodes().forEach(node => {
-            if (node.metadata && node.metadata.isRoot) {
+            if (node.id === "light" || node.id === "dirLight") {
                 node.setEnabled(true);
+                return;
+            }
+            if (node.metadata && node.metadata.isRoot) {
+                // Buildings are only for surface view
+                if (node.id.startsWith("ColonyBuilding_")) {
+                    node.setEnabled(false);
+                } else {
+                    node.setEnabled(true);
+                }
             }
         });
 
         // 2. Hide Terrain
-        if (this.terrain) {
-            this.terrain.setEnabled(false);
-        }
+        if (this.terrain) this.terrain.setEnabled(false);
 
         // 3. Reset Camera
-        this.camera.lowerRadiusLimit = 10;
-        this.camera.upperRadiusLimit = 2000;
-        this.camera.lowerBetaLimit = 0.1;
-        this.camera.upperBetaLimit = Math.PI - 0.1;
+        this.camera.setTarget(BABYLON.Vector3.Zero());
+        this.camera.radius = 200;
+        this.camera.alpha = -Math.PI / 2;
+        this.camera.beta = Math.PI / 3;
+        this.camera.lowerRadiusLimit = 50;
+        this.camera.upperRadiusLimit = 1000;
+        this.camera.lowerBetaLimit = 0.01;
+        this.camera.upperBetaLimit = Math.PI - 0.01;
     }
 };

@@ -1,7 +1,9 @@
 @using AstralExpanse.Services
 @inject GameStateService GameState
 
-<div class="station-panel">
+@if (Visible)
+{
+    <div class="station-panel">
     <h3>Station Command</h3>
     <div class="station-list">
         @if (!GameState.Stations.Any())
@@ -34,9 +36,11 @@
             }
         }
     </div>
-</div>
+    </div>
+}
 
 @code {
+    [Parameter] public bool Visible { get; set; } = true;
     [Parameter] public string? SelectedStationId { get; set; }
     [Parameter] public EventCallback<string> OnSelectStation { get; set; }
     [Parameter] public EventCallback<string> OnOpenShipyard { get; set; }

@@ -103,6 +103,7 @@ public class MissionService
                 await Task.Delay(1000);
                 mission.Cargo = Math.Min(mission.MaxCargo, mission.Cargo + 10);
                 _gameState.DepleteAsteroid(asteroidId, 10);
+                _gameState.Notify();
             }
 
             if (mission.State == ShipState.Mining)
@@ -120,6 +121,7 @@ public class MissionService
             {
                 await Task.Delay(1000);
                 if (mission.State != ShipState.Unloading) return; 
+                _gameState.Notify();
             }
 
             _gameState.AddOre(mission.Cargo);
@@ -187,5 +189,18 @@ public class MissionService
             0, 
             (float)(Math.Sin(angle) * radius) 
         };
+    }
+
+    public void RestartMissions()
+    {
+        foreach (var mission in _gameState.ActiveMissions.Values)
+        {
+            if (mission.State == ShipState.Mining)
+                _ = HandleMiningSequence(mission.ShipId, mission.AsteroidId);
+            else if (mission.State == ShipState.Unloading)
+                _ = HandleUnloadingSequence(mission.ShipId);
+            else if (mission.State == ShipState.Colonizing)
+                _ = HandleColonizationSequence(mission.ShipId, mission.AsteroidId);
+        }
     }
 }

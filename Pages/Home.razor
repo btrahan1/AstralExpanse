@@ -8,6 +8,7 @@
 @inject HttpClient Http
 @inject MissionService Missions
 @inject ConstructionService Construction
+@inject ColonyService Colony
 @implements IDisposable
 
 <PageTitle>Astral Expanse</PageTitle>
@@ -28,35 +29,39 @@
 
     <MiningMenu Show="_showMiningMenu" X="_mouseX" Y="_mouseY" OnStartMining="StartMiningMission" />
 
-    <FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnVisitPlanet="VisitColony" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" />
+    <FleetPanel SelectedShipId="@_selectedShipId" OnSelectShip="HandleSelectShipFromPanel" OnVisitPlanet="VisitColony" OnStopMining="HandleStopMining" OnStartMission="HandleStartMission" OnInitiateTow="id => _isTowingMode = true" Visible="@(!_isSurfaceView)" />
     
     @if (_isSurfaceView)
     {
         <SurfaceOverlay OnReturn="ExitSurfaceView" />
+        <ColonyMenu Show="_showColonyMenu" PlanetId="@_currentSurfacePlanetId" OnClose="() => _showColonyMenu = false" />
     }
 
-    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="id => { _shipyardStationId = id; _showShipyard = true; }" OnInitiateStationTow="HandleInitiateStationTow" />
+    <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="id => { _shipyardStationId = id; _showShipyard = true; }" OnInitiateStationTow="HandleInitiateStationTow" Visible="@(!_isSurfaceView)" />
 
     <Radar @ref="_radar" Visible="@(!_isSurfaceView)" OnLocationSelected="HandleRadarLocationSelected" />
 
     <div class="ui-container" tabindex="-1">
-        <div class="ui-overlay">
-            <h1>Astral Expanse</h1>
-            <p>Orbiting Ark Colonization Station</p>
-            
-            <StatsOverlay />
+        <div class="ui-overlay" style="@(_isSurfaceView ? "pointer-events: none; opacity: 0.5;" : "")">
+            @if (!_isSurfaceView)
+            {
+                <h1>Astral Expanse</h1>
+                <p>Orbiting Ark Colonization Station</p>
+                
+                <StatsOverlay />
 
-            <SelectionOverlay 
-                SelectedShipId="@_selectedShipId" 
-                SelectedStationId="@_selectedStationId" 
-                SelectedAsteroidId="@_selectedAsteroidId" 
-                AsteroidOre="@(GameState.Asteroids.Find(a => a.Id == _selectedAsteroidId)?.Capacity ?? 0)" />
+                <SelectionOverlay 
+                    SelectedShipId="@_selectedShipId" 
+                    SelectedStationId="@_selectedStationId" 
+                    SelectedAsteroidId="@_selectedAsteroidId" 
+                    AsteroidOre="@(GameState.Asteroids.Find(a => a.Id == _selectedAsteroidId)?.Capacity ?? 0)" />
 
-            <GuidanceOverlay 
-                IsTowingMode="@_isTowingMode" 
-                TowingTargetId="@_towingTargetId" 
-                StationPendingTowId="@_stationPendingTowId" 
-                NoTugsAvailable="@_noTugsAvailable" />
+                <GuidanceOverlay 
+                    IsTowingMode="@_isTowingMode" 
+                    TowingTargetId="@_towingTargetId" 
+                    StationPendingTowId="@_stationPendingTowId" 
+                    NoTugsAvailable="@_noTugsAvailable" />
+            }
         </div>
     </div>
 }
@@ -80,6 +85,7 @@
     private bool _isGameActive = false;
     private System.Timers.Timer? _saveTimer;
     private string? _shipyardStationId;
+    private bool _showColonyMenu = false;
 
     protected override void OnInitialized()
     {
@@ -130,12 +136,27 @@
         await Task.Delay(200);
         await JSRuntime.InvokeVoidAsync("AstralEngine.focusElement", ".ui-container");
         await SyncPositionsToState();
+        
+        // Restart mission loops
+        Missions.RestartMissions();
+        foreach (var m in GameState.ActiveMissions.Values.Where(m => m.State == ShipState.Building))
+        {
+            _ = Construction.HandleConstructionSequence(m.ShipId, m.ConstructionTarget);
+        }
+
         StateHasChanged();
     }
 
     private async void HandleEscape()
     {
         await InvokeAsync(async () => {
+            if (_showColonyMenu)
+            {
+                _showColonyMenu = false;
+                StateHasChanged();
+                return;
+            }
+
             if (_isGameActive)
             {
                 await SyncPositionsToState();
@@ -175,7 +196,7 @@
             }
             foreach (var planet in GameState.Planets)
             {
-                var pJson = await GeneratePlanetJson(planet.Name);
+                var pJson = GeneratePlanetJson(planet.Name);
                 await BabylonService.LoadModel(pJson, planet.Position, 50.0f, id: planet.Id);
                 
                 if (planet.IsColonized)
@@ -256,6 +277,18 @@
             else _selectedShipId = null;
             await CenterOnObject(id);
         }
+        else if (name == "Planetary_Colony_Alpha" || id.StartsWith("Hub_"))
+        {
+            if (_isSurfaceView)
+            {
+                _showColonyMenu = true;
+            }
+            else
+            {
+                // In space, clickinghub might center or something
+                await CenterOnObject(id);
+            }
+        }
         StateHasChanged();
     }
 
@@ -267,7 +300,7 @@
 
     private async Task StartColonizationMission(string id) { if (string.IsNullOrEmpty(_selectedShipId)) return; await Missions.StartColonizationMission(_selectedShipId, id); StateHasChanged(); }
 
-    private async Task HandleInitiateStationTow(string id) { _stationPendingTowId = id; _isTowingMode = true; StateHasChanged(); }
+    private void HandleInitiateStationTow(string id) { _stationPendingTowId = id; _isTowingMode = true; StateHasChanged(); }
 
     private async Task HandleRadarLocationSelected(float[] worldPos)
     {
@@ -322,15 +355,15 @@
         float[] pos = { (float)Math.Cos(angle) * 2500.0f, 0, (float)Math.Sin(angle) * 2500.0f };
         var planet = new PlanetData { Id = id, Name = "Aethelgard Prime", Position = pos, IsDiscovered = true };
         GameState.Planets.Add(planet);
-        await BabylonService.LoadModel(await GeneratePlanetJson(planet.Name), pos, scale: 50.0f, id: id);
+        await BabylonService.LoadModel(GeneratePlanetJson(planet.Name), pos, scale: 50.0f, id: id);
     }
 
-    private async Task<string> GeneratePlanetJson(string name) => $@"{{ 
+    private string GeneratePlanetJson(string name) => $@"{{ 
         ""Name"": ""{name}"", 
         ""Type"": ""Planet"", 
         ""Parts"": [ 
-            {{ ""Id"": ""body"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1,1,1], ""ColorHex"": ""#4488ff"" }},
-            {{ ""Id"": ""atmo"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1.05,1.05,1.05], ""ColorHex"": ""#88ccff"", ""Material"": ""Glass"" }}
+            {{ ""Id"": ""body"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1,1,1], ""ColorHex"": ""#554433"" }},
+            {{ ""Id"": ""atmo"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1.05,1.05,1.05], ""ColorHex"": ""#7eb6ff"", ""Material"": ""Glass"" }}
         ] 
     }}";
 
@@ -351,8 +384,15 @@
 
     private bool IsSelectedShipOfType(GameUnitType t) => GameState.ActiveMissions.TryGetValue(_selectedShipId ?? "", out var m) && m.Type == t;
 
-    private async Task VisitColony(string id) { _isSurfaceView = true; _currentSurfacePlanetId = id; await BabylonService.SetSurfaceView(id); StateHasChanged(); }
-    private async Task ExitSurfaceView() { _isSurfaceView = false; await BabylonService.SetSpaceView(); await CenterOnObject("Ark_Colonization_Station"); StateHasChanged(); }
+    private async Task VisitColony(string id) 
+    { 
+        _isSurfaceView = true; 
+        _currentSurfacePlanetId = id; 
+        await BabylonService.SetSurfaceView(id); 
+        await Colony.LoadColonyBuildings(id);
+        StateHasChanged(); 
+    }
+    private async Task ExitSurfaceView() { _isSurfaceView = false; _showColonyMenu = false; await BabylonService.SetSpaceView(); await CenterOnObject("Ark_Colonization_Station"); StateHasChanged(); }
 
     private async Task SyncPositionsToState() { foreach (var id in GameState.ActiveMissions.Keys) { var pos = await BabylonService.GetModelPosition(id); if (pos != null) GameState.ActiveMissions[id].Position = pos; } }
 
