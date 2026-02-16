@@ -28,10 +28,16 @@ public class ColonyService
             "WheatField" => 100,
             "PotatoField" => 150,
             "CornField" => 200,
+            "Habitat" => 1000,
             _ => 9999
         };
 
-        if (_gameState.Ore < cost) return false;
+        if (type == "Habitat")
+        {
+            if (_gameState.Ore < 1000 || _gameState.Wheat < 1000 || _gameState.Potato < 1000 || _gameState.Corn < 1000)
+                return false;
+        }
+        else if (_gameState.Ore < cost) return false;
 
         IsPlacing = true;
         try
@@ -42,7 +48,23 @@ public class ColonyService
             var position = await _babylon.StartPlacement(json);
             if (position != null)
             {
-                if (_gameState.TryBuildColonyBuilding(planetId, type, cost, position))
+                bool success = false;
+                if (type == "Habitat")
+                {
+                    // For Habitat, we deduct all resources
+                    if (_gameState.TryDeductResources(1000, 1000, 1000, 1000))
+                    {
+                        // 100s build duration
+                        await Task.Delay(100000);
+                        success = _gameState.TryBuildColonyBuilding(planetId, type, 0, position, populationBoost: 100);
+                    }
+                }
+                else
+                {
+                    success = _gameState.TryBuildColonyBuilding(planetId, type, cost, position);
+                }
+
+                if (success)
                 {
                     var buildingId = $"ColonyBuilding_{planetId}_{type}_{System.Guid.NewGuid().ToString()[..4]}";
                     await _babylon.LoadModel(json, position, id: buildingId);
@@ -65,6 +87,7 @@ public class ColonyService
         "WheatField" => "wheat_field.json",
         "PotatoField" => "potato_field.json",
         "CornField" => "corn_field.json",
+        "Habitat" => "habitat.json",
         _ => "unit.json"
     };
 

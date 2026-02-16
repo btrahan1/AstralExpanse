@@ -90,6 +90,7 @@ public class PlanetData
     public string Type { get; set; } = "Terrestrial";
     public List<ColonyBuilding> Buildings { get; set; } = new List<ColonyBuilding>();
     public List<FarmingBot> Bots { get; set; } = new List<FarmingBot>();
+    public int Population { get; set; } = 0;
 }
 
 public class GameStateService
@@ -144,24 +145,42 @@ public class GameStateService
         return false;
     }
 
-    public bool TryBuildColonyBuilding(string planetId, string buildingType, int cost, float[] pos)
+    public bool TryDeductResources(int ore, int wheat, int potato, int corn)
     {
-        if (Ore >= cost)
+        if (Ore >= ore && Wheat >= wheat && Potato >= potato && Corn >= corn)
         {
-            var planet = Planets.Find(p => p.Id == planetId);
-            if (planet != null)
-            {
-                Ore -= cost;
-                var buildingId = $"{buildingType}_{Guid.NewGuid().ToString()[..8]}";
-                planet.Buildings.Add(new ColonyBuilding 
-                { 
-                    Id = buildingId, 
-                    Type = buildingType, 
-                    Position = pos 
-                });
-                Notify();
-                return true;
-            }
+            Ore -= ore;
+            Wheat -= wheat;
+            Potato -= potato;
+            Corn -= corn;
+            Notify();
+            return true;
+        }
+        return false;
+    }
+
+    public bool TryBuildColonyBuilding(string planetId, string buildingType, int cost, float[] pos, int populationBoost = 0)
+    {
+        // For Habitat, cost might have already been deducted by TryDeductResources in ColonyService
+        // But for consistency we check Ore >= cost if cost > 0
+        if (cost > 0 && Ore < cost) return false;
+
+        var planet = Planets.Find(p => p.Id == planetId);
+        if (planet != null)
+        {
+            if (cost > 0) Ore -= cost;
+            
+            var buildingId = $"{buildingType}_{Guid.NewGuid().ToString()[..8]}";
+            planet.Buildings.Add(new ColonyBuilding 
+            { 
+                Id = buildingId, 
+                Type = buildingType, 
+                Position = pos 
+            });
+
+            planet.Population += populationBoost;
+            Notify();
+            return true;
         }
         return false;
     }

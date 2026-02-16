@@ -363,7 +363,7 @@ window.AstralEngine = {
         if (!skyLight) {
             skyLight = new BABYLON.HemisphericLight("skyLight", new BABYLON.Vector3(0, 1, 0), this.scene);
         }
-        skyLight.intensity = 0.7;
+        skyLight.intensity = 0.3;
         skyLight.diffuse = new BABYLON.Color3(1, 1, 1);
         skyLight.groundColor = new BABYLON.Color3(0.5, 0.4, 0.3);
 
@@ -372,7 +372,7 @@ window.AstralEngine = {
         if (!sunLight) {
             sunLight = new BABYLON.DirectionalLight("sunLight", new BABYLON.Vector3(0.1, -1, 0.1), this.scene);
         }
-        sunLight.intensity = 0.9;
+        sunLight.intensity = 0.3;
 
         // 0.1 Find target position
         const hubNode = this.scene.getNodeById("Hub_" + planetId);
@@ -391,18 +391,33 @@ window.AstralEngine = {
             }
         });
 
-        // 2. Setup Terrain (Fail-Safe "Sandy Beach")
+        // 2. Setup Terrain (Textured "Sandy Beach")
         if (!this.terrain) {
             this.terrain = BABYLON.MeshBuilder.CreateGround("terrain", { width: 10000, height: 10000, subdivisions: 2 }, this.scene);
             const terrainMat = new BABYLON.StandardMaterial("terrainMat", this.scene);
 
-            // FORCE VISIBILITY: Use pure emissive, unlit color.
-            // This ground will stay bright even if there are ZERO lights in the scene.
-            terrainMat.diffuseColor = new BABYLON.Color3(0, 0, 0); // Ignore diffuse
-            terrainMat.specularColor = new BABYLON.Color3(0, 0, 0);
-            terrainMat.emissiveColor = new BABYLON.Color3(0.85, 0.8, 0.65); // Slightly lowered but still bright
-            terrainMat.disableLighting = true; // Make it independent of lights
+            // FORCE VISIBILITY + TEXTURE: Use emissive map to avoid "blackout" issues.
+            if (BABYLON.NoiseProceduralTexture) {
+                const noiseTexture = new BABYLON.NoiseProceduralTexture("noise", 512, this.scene);
+                noiseTexture.octaves = 3;
+                noiseTexture.persistence = 0.8;
+                // High tiling for fine sand grain texture
+                noiseTexture.uScale = 60.0;
+                noiseTexture.vScale = 60.0;
+                // Bright sand palette (Emissive ensures it never goes black)
+                noiseTexture.darkColor = new BABYLON.Color3(0.85, 0.8, 0.65);
+                noiseTexture.brightColor = new BABYLON.Color3(0.95, 0.9, 0.8);
+                noiseTexture.refreshRate = -1; // Static refresh to prevent flicker
 
+                terrainMat.emissiveTexture = noiseTexture;
+                terrainMat.emissiveColor = new BABYLON.Color3(1, 1, 1); // Pass-through for texture
+            } else {
+                terrainMat.emissiveColor = new BABYLON.Color3(0.85, 0.8, 0.65);
+            }
+
+            terrainMat.diffuseColor = new BABYLON.Color3(0, 0, 0);
+            terrainMat.specularColor = new BABYLON.Color3(0, 0, 0);
+            terrainMat.disableLighting = true; // Independent of light levels
             terrainMat.backFaceCulling = false;
             this.terrain.material = terrainMat;
         }

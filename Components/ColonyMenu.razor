@@ -13,6 +13,7 @@
         
         <div class="resource-panel">
             <div class="res-item">ORE: @GameState.Ore</div>
+            <div class="res-item pop">POP: @(GameState.Planets.Find(p => p.Id == PlanetId)?.Population ?? 0)</div>
             <div class="res-item wheat">WHEAT: @GameState.Wheat</div>
             <div class="res-item potato">POTATO: @GameState.Potato</div>
             <div class="res-item corn">CORN: @GameState.Corn</div>
@@ -46,6 +47,17 @@
                     </div>
                     <button class="build-btn" @onclick='() => Build("ResearchCenter")' disabled="@(GameState.Ore < 1200)">
                         BUILD (1200)
+                    </button>
+                </div>
+
+                <div class="building-item">
+                    <div class="info">
+                        <strong>Habitat</strong>
+                        <p>Houses 100 people. Costs 1k Ore + 1k of each crop.</p>
+                    </div>
+                    <button class="build-btn" @onclick='() => Build("Habitat")' 
+                            disabled="@(GameState.Ore < 1000 || GameState.Wheat < 1000 || GameState.Potato < 1000 || GameState.Corn < 1000)">
+                        BUILD (1000+)
                     </button>
                 </div>
 
@@ -217,6 +229,7 @@
     .res-item.wheat { color: #eedd88; }
     .res-item.potato { color: #aaaaaa; }
     .res-item.corn { color: #ffdd00; }
+    .res-item.pop { color: #88ff88; }
 
     .section-header {
         font-size: 0.7rem;

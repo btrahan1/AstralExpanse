@@ -1,0 +1,351 @@
+{
+    "Name": "Colony_Habitat_Prime",
+    "Type": "Procedural",
+    "Parts": [
+        {
+            "Id": "foundation_slab",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                0.5,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                50.0,
+                1.0,
+                50.0
+            ],
+            "ColorHex": "#444444",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "main_atrium_core",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                10.0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                25.0,
+                20.0,
+                25.0
+            ],
+            "ColorHex": "#FFFFFF",
+            "Material": "Plastic",
+            "Operation": "Union"
+        },
+        {
+            "Id": "observation_dome",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                20.0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                20.0,
+                12.0,
+                20.0
+            ],
+            "ColorHex": "#88CCFF",
+            "Material": "Glass",
+            "Operation": "Union"
+        },
+        {
+            "Id": "living_wing_north",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                5.0,
+                25.0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                15.0,
+                8.0,
+                20.0
+            ],
+            "ColorHex": "#CCCCCC",
+            "Material": "Plastic",
+            "Operation": "Union"
+        },
+        {
+            "Id": "living_wing_south",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                5.0,
+                -25.0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                15.0,
+                8.0,
+                20.0
+            ],
+            "ColorHex": "#CCCCCC",
+            "Material": "Plastic",
+            "Operation": "Union"
+        },
+        {
+            "Id": "living_wing_east",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                25.0,
+                5.0,
+                0
+            ],
+            "Rotation": [
+                0,
+                90,
+                0
+            ],
+            "Scale": [
+                15.0,
+                8.0,
+                20.0
+            ],
+            "ColorHex": "#CCCCCC",
+            "Material": "Plastic",
+            "Operation": "Union"
+        },
+        {
+            "Id": "living_wing_west",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                -25.0,
+                5.0,
+                0
+            ],
+            "Rotation": [
+                0,
+                90,
+                0
+            ],
+            "Scale": [
+                15.0,
+                8.0,
+                20.0
+            ],
+            "ColorHex": "#CCCCCC",
+            "Material": "Plastic",
+            "Operation": "Union"
+        },
+        {
+            "Id": "airlock_main",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                0,
+                2.0,
+                38.0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                6.0,
+                4.0,
+                6.0
+            ],
+            "ColorHex": "#222222",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "comm_tower_base",
+            "ParentId": null,
+            "Shape": "Cylinder",
+            "Position": [
+                0,
+                25.0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1.0,
+                10.0,
+                1.0
+            ],
+            "ColorHex": "#AAAAAA",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "radar_dish",
+            "ParentId": null,
+            "Shape": "Cone",
+            "Position": [
+                0,
+                30.0,
+                0
+            ],
+            "Rotation": [
+                45,
+                0,
+                0
+            ],
+            "Scale": [
+                5.0,
+                2.0,
+                5.0
+            ],
+            "ColorHex": "#FFFFFF",
+            "Material": "Metal",
+            "Operation": "Union"
+        },
+        {
+            "Id": "status_light_01",
+            "ParentId": null,
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                32.0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.5,
+                0.5,
+                0.5
+            ],
+            "ColorHex": "#FF0000",
+            "Material": "Glow",
+            "Operation": "Union"
+        },
+        {
+            "Id": "solar_panel_array_01",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                18.0,
+                15.0,
+                18.0
+            ],
+            "Rotation": [
+                -30,
+                45,
+                0
+            ],
+            "Scale": [
+                10.0,
+                0.2,
+                5.0
+            ],
+            "ColorHex": "#112244",
+            "Material": "Glass",
+            "Operation": "Union"
+        },
+        {
+            "Id": "solar_panel_array_02",
+            "ParentId": null,
+            "Shape": "Box",
+            "Position": [
+                -18.0,
+                15.0,
+                -18.0
+            ],
+            "Rotation": [
+                -30,
+                225,
+                0
+            ],
+            "Scale": [
+                10.0,
+                0.2,
+                5.0
+            ],
+            "ColorHex": "#112244",
+            "Material": "Glass",
+            "Operation": "Union"
+        }
+    ],
+    "Timeline": [
+        {
+            "Time": 0.0,
+            "Action": "Rotate",
+            "TargetId": "radar_dish",
+            "Value": [
+                45,
+                0,
+                0
+            ],
+            "Duration": 0.0
+        },
+        {
+            "Time": 0.0,
+            "Action": "Rotate",
+            "TargetId": "radar_dish",
+            "Value": [
+                45,
+                360,
+                0
+            ],
+            "Duration": 10.0
+        },
+        {
+            "Time": 0.0,
+            "Action": "Color",
+            "TargetId": "status_light_01",
+            "Value": [
+                1,
+                0,
+                0
+            ],
+            "Duration": 1.0
+        },
+        {
+            "Time": 1.0,
+            "Action": "Color",
+            "TargetId": "status_light_01",
+            "Value": [
+                0.2,
+                0,
+                0
+            ],
+            "Duration": 1.0
+        }
+    ]
+}
