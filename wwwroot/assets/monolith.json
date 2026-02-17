@@ -1,0 +1,108 @@
+{
+    "Name": "Crystal_Monolith",
+    "Type": "Monolith",
+    "Parts": [
+        {
+            "Id": "Base",
+            "Shape": "Box",
+            "Scale": [
+                4,
+                1,
+                4
+            ],
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "ColorHex": "#222222",
+            "Material": "Metallic"
+        },
+        {
+            "Id": "Crystal_Core",
+            "Shape": "Box",
+            "Scale": [
+                1.5,
+                8,
+                1.5
+            ],
+            "Position": [
+                0,
+                4.5,
+                0
+            ],
+            "ColorHex": "#00ffff",
+            "Material": "Glow"
+        },
+        {
+            "Id": "Crystal_Top",
+            "Shape": "Cone",
+            "Scale": [
+                2,
+                3,
+                2
+            ],
+            "Position": [
+                0,
+                10,
+                0
+            ],
+            "ColorHex": "#00ffff",
+            "Material": "Glow"
+        },
+        {
+            "Id": "Shard_1",
+            "Shape": "Box",
+            "Scale": [
+                0.5,
+                3,
+                0.5
+            ],
+            "Position": [
+                2,
+                2,
+                2
+            ],
+            "Rotation": [
+                15,
+                0,
+                15
+            ],
+            "ColorHex": "#88ffff",
+            "Material": "Glow"
+        },
+        {
+            "Id": "Shard_2",
+            "Shape": "Box",
+            "Scale": [
+                0.5,
+                3,
+                0.5
+            ],
+            "Position": [
+                -2,
+                2,
+                -2
+            ],
+            "Rotation": [
+                -15,
+                0,
+                -15
+            ],
+            "ColorHex": "#88ffff",
+            "Material": "Glow"
+        }
+    ],
+    "Timeline": [
+        {
+            "TargetId": "Crystal_Core",
+            "Action": "Rotate",
+            "Value": [
+                0,
+                360,
+                0
+            ],
+            "Duration": 10
+        }
+    ]
+}

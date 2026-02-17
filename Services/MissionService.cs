@@ -212,8 +212,21 @@ public class MissionService
         string id = $"Planet_{Guid.NewGuid().ToString()[..8]}";
         float angle = (float)(rnd.NextDouble() * Math.PI * 2);
         float[] pos = { (float)Math.Cos(angle) * 2500.0f, 0, (float)Math.Sin(angle) * 2500.0f };
-        var planet = new PlanetData { Id = id, Name = "Aethelgard Prime", Position = pos, IsDiscovered = true };
+        var planet = new PlanetData { Id = id, Name = "Aethelgard Prime", Position = pos, IsDiscovered = true, MonolithsSeeded = true };
         
+        // Seed Monoliths around the base location
+        for (int i = 0; i < 3; i++)
+        {
+            float mAngle = (float)(rnd.NextDouble() * Math.PI * 2);
+            float mDist = 200 + (float)(rnd.NextDouble() * 400); // 200-600 units away
+            planet.Monoliths.Add(new MonolithData 
+            { 
+                Id = $"Monolith_{id}_{i}",
+                Position = new float[] { pos[0] + (float)Math.Cos(mAngle) * mDist, pos[1] + 26.5f, pos[2] + (float)Math.Sin(mAngle) * mDist },
+                IsDiscovered = false
+            });
+        }
+
         _gameState.Planets.Add(planet);
         _gameState.Fleet.Remove(probeId);
         _gameState.ActiveMissions.Remove(probeId);

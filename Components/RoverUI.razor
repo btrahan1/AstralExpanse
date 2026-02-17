@@ -1,11 +1,26 @@
 @using AstralExpanse.Services
 @inject RoverService RoverService
 @inject GameStateService GameState
+@implements IDisposable
 
 @if (RoverService.IsDriving)
 {
     <div class="rover-overlay">
+        @if (RoverService.SensorData != null)
+        {
+            <div class="sensor-hud">
+                <div class="sensor-label">DISCOVERY SENSOR</div>
+                <div class="sensor-distance">@($"{RoverService.SensorData.Distance:F0}m")</div>
+                <div class="sensor-bearing @(GetBearingClass(RoverService.SensorData.Bearing))">
+                    <span class="bearing-arrow">▲</span>
+                </div>
+            </div>
+        }
+
         <div class="rover-hud">
+            <button class="nav-btn @(RoverService.IsAutodriving ? "active" : "")" @onclick="RoverService.ToggleReturnHome">
+                <span class="icon">🛰️</span> @(RoverService.IsAutodriving ? "NAVIGATING..." : "RETURN HOME")
+            </button>
             <button class="exit-btn" @onclick="RoverService.ExitDriveMode">
                 <span class="icon">⏻</span> EXIT ROVER
             </button>
@@ -65,4 +80,104 @@
         padding: 5px 15px;
         border-radius: 20px;
     }
+
+    .sensor-hud {
+        background: rgba(10, 20, 40, 0.8);
+        border: 2px solid #00ffff;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    }
+
+    .sensor-label {
+        color: #00ffff;
+        font-size: 0.7rem;
+        letter-spacing: 2px;
+    }
+
+    .sensor-distance {
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .sensor-bearing {
+        font-size: 2rem;
+        color: #00ffff;
+        transition: transform 0.2s;
+    }
+
+    .bearing-arrow {
+        display: inline-block;
+    }
+
+    .nav-btn {
+        background: rgba(68, 136, 255, 0.8);
+        color: white;
+        border: 2px solid #88ccff;
+        padding: 10px 20px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 5px;
+    }
+
+    .nav-btn.active {
+        background: #00ff88;
+        border-color: #ffffff;
+        color: #000;
+        animation: pulse 1s infinite alternate;
+    }
+
+    @@keyframes pulse {
+        from { box-shadow: 0 0 5px #00ff88; }
+        to { box-shadow: 0 0 20px #00ff88; }
+    }
+
+    /* Bearing rotations */
+    .bearing-n  { transform: rotate(0deg); }
+    .bearing-ne { transform: rotate(45deg); }
+    .bearing-e  { transform: rotate(90deg); }
+    .bearing-se { transform: rotate(135deg); }
+    .bearing-s  { transform: rotate(180deg); }
+    .bearing-sw { transform: rotate(225deg); }
+    .bearing-w  { transform: rotate(270deg); }
+    .bearing-nw { transform: rotate(315deg); }
 </style>
+
+@code {
+    protected override void OnInitialized()
+    {
+        GameState.OnStateChanged += StateHasChanged;
+    }
+
+    private string GetBearingClass(float radians)
+    {
+        // Convert to degrees and normalize
+        var deg = radians * (180.0 / Math.PI);
+        while (deg < 0) deg += 360;
+        deg = deg % 360;
+
+        if (deg >= 337.5 || deg < 22.5) return "bearing-n";
+        if (deg >= 22.5 && deg < 67.5) return "bearing-ne";
+        if (deg >= 67.5 && deg < 112.5) return "bearing-e";
+        if (deg >= 112.5 && deg < 157.5) return "bearing-se";
+        if (deg >= 157.5 && deg < 202.5) return "bearing-s";
+        if (deg >= 202.5 && deg < 247.5) return "bearing-sw";
+        if (deg >= 247.5 && deg < 292.5) return "bearing-w";
+        if (deg >= 292.5 && deg < 337.5) return "bearing-nw";
+        return "bearing-n";
+    }
+
+    public void Dispose()
+    {
+        GameState.OnStateChanged -= StateHasChanged;
+    }
+}

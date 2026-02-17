@@ -1,0 +1,22 @@
+{
+    "Name": "Generic_Unit",
+    "Type": "Unit",
+    "Parts": [
+        {
+            "Id": "Body",
+            "Shape": "Box",
+            "Scale": [
+                1,
+                1,
+                1
+            ],
+            "Position": [
+                0,
+                0.5,
+                0
+            ],
+            "ColorHex": "#ffffff",
+            "Material": "Metallic"
+        }
+    ]
+}

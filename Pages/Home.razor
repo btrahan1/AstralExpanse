@@ -42,29 +42,30 @@
 
     <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="id => { _shipyardStationId = id; _showShipyard = true; }" OnInitiateStationTow="HandleInitiateStationTow" Visible="@(!_isSurfaceView)" />
 
-    <Radar @ref="_radar" Visible="@(!_isSurfaceView)" OnLocationSelected="HandleRadarLocationSelected" />
+    <Radar @ref="_radar" Visible="true" IsPlanetaryView="@_isSurfaceView" OnLocationSelected="HandleRadarLocationSelected" />
 
     <div class="ui-container" tabindex="-1" @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp">
-        <div class="ui-overlay" style="@(_isSurfaceView ? "pointer-events: none; opacity: 0.5;" : "")">
+        <div class="ui-overlay">
             @if (!_isSurfaceView)
             {
                 <h1>Astral Expanse</h1>
                 <p>Orbiting Ark Colonization Station</p>
                 
-                <StatsOverlay />
-
-                <SelectionOverlay 
-                    SelectedShipId="@_selectedShipId" 
-                    SelectedStationId="@_selectedStationId" 
-                    SelectedAsteroidId="@_selectedAsteroidId" 
-                    AsteroidOre="@(GameState.Asteroids.Find(a => a.Id == _selectedAsteroidId)?.Capacity ?? 0)" />
-
                 <GuidanceOverlay 
                     IsTowingMode="@_isTowingMode" 
                     TowingTargetId="@_towingTargetId" 
                     StationPendingTowId="@_stationPendingTowId" 
                     NoTugsAvailable="@_noTugsAvailable" />
             }
+            
+            <StatsOverlay />
+            
+            <SelectionOverlay 
+                SelectedShipId="@_selectedShipId" 
+                SelectedStationId="@_selectedStationId" 
+                SelectedAsteroidId="@_selectedAsteroidId" 
+                AsteroidOre="@(GameState.Asteroids.Find(a => a.Id == _selectedAsteroidId)?.Capacity ?? 0)"
+                OnMineMonolith="HandleMineMonolith" />
         </div>
     </div>
 }
@@ -96,6 +97,8 @@
         BabylonService.OnObjectClicked += HandleObjectClicked;
         BabylonService.OnMoveComplete += HandleMoveComplete;
         BabylonService.OnEscapePressed += HandleEscape;
+        BabylonService.OnMonolithDiscovered += HandleMonolithDiscovered;
+        BabylonService.OnMinerUnloaded += HandleMinerUnloaded;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -307,9 +310,12 @@
                 await CenterOnObject(id);
             }
         }
-        else if (name == "Iron_Rich_Asteroid")
+        else if (type == "Asteroid" || name == "Iron_Rich_Asteroid")
         {
             _selectedAsteroidId = id;
+            _selectedShipId = null;
+            _selectedStationId = null;
+            
             if (IsSelectedShipOfType(GameUnitType.MinerUnit))
             {
                 if (GameState.ActiveMissions.TryGetValue(_selectedShipId!, out var m) && m.State == ShipState.Idle)
@@ -320,6 +326,13 @@
                     _showMiningMenu = true;
                 }
             }
+            await CenterOnObject(id);
+        }
+        else if (type == "Monolith" || id.StartsWith("Monolith"))
+        {
+            _selectedAsteroidId = id;
+            _selectedShipId = null;
+            _selectedStationId = null;
             await CenterOnObject(id);
         }
         else if (name == "Planet")
@@ -421,7 +434,43 @@
         Farming.CurrentPlanetId = id;
         await BabylonService.SetSurfaceView(id); 
         await Colony.LoadColonyBuildings(id);
+        var planet = GameState.Planets.Find(p => p.Id == id);
+        if (planet != null)
+        {
+            _radar?.CenterOn(planet.Position[0], planet.Position[2]);
+        }
         StateHasChanged(); 
+    }
+
+    private void HandleMonolithDiscovered(string id)
+    {
+        var planet = GameState.Planets.Find(p => p.Monoliths.Any(m => m.Id == id));
+        if (planet != null)
+        {
+            var m = planet.Monoliths.Find(mon => mon.Id == id);
+            if (m != null)
+            {
+                m.IsDiscovered = true;
+                _ = InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private void HandleMinerUnloaded(string id, int amount)
+    {
+        GameState.AddAetherShards(amount);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleMineMonolith(string monolithId)
+    {
+        if (string.IsNullOrEmpty(_currentSurfacePlanetId)) return;
+        if (await Colony.BuildSurfaceMiner(_currentSurfacePlanetId, monolithId))
+        {
+            _selectedAsteroidId = null;
+            await BabylonService.SetSelected(null);
+            StateHasChanged();
+        }
     }
     private async Task ExitSurfaceView() 
     { 
@@ -454,6 +503,8 @@
         BabylonService.OnObjectClicked -= HandleObjectClicked;
         BabylonService.OnMoveComplete -= HandleMoveComplete;
         BabylonService.OnEscapePressed -= HandleEscape;
+        BabylonService.OnMonolithDiscovered -= HandleMonolithDiscovered;
+        BabylonService.OnMinerUnloaded -= HandleMinerUnloaded;
         _saveTimer?.Dispose();
     }
 

@@ -97,6 +97,23 @@ public class RoverData
     public bool IsActive { get; set; } = false;
 }
 
+public class MonolithData
+{
+    public string Id { get; set; } = string.Empty;
+    public float[] Position { get; set; } = new float[3];
+    public bool IsDiscovered { get; set; } = false;
+}
+
+public class SurfaceMinerData
+{
+    public string Id { get; set; } = string.Empty;
+    public float[] Position { get; set; } = new float[3];
+    public string TargetMonolithId { get; set; } = string.Empty;
+    public string OwnerPlanetId { get; set; } = string.Empty;
+    public ShipState State { get; set; } = ShipState.Idle;
+    public int Cargo { get; set; } = 0;
+}
+
 public class PlanetData
 {
     public string Id { get; set; } = string.Empty;
@@ -110,6 +127,9 @@ public class PlanetData
     public List<ConstructionProject> ConstructionProjects { get; set; } = new List<ConstructionProject>();
     public int Population { get; set; } = 0;
     public RoverData? Rover { get; set; }
+    public List<MonolithData> Monoliths { get; set; } = new List<MonolithData>();
+    public List<SurfaceMinerData> SurfaceMiners { get; set; } = new List<SurfaceMinerData>();
+    public bool MonolithsSeeded { get; set; } = false;
 }
 
 public class GameStateService
@@ -121,6 +141,7 @@ public class GameStateService
     public List<AsteroidData> Asteroids { get; set; } = new List<AsteroidData>();
     public List<PlanetData> Planets { get; set; } = new List<PlanetData>();
     public Dictionary<string, ShipMission> ActiveMissions { get; set; } = new Dictionary<string, ShipMission>();
+    public int AetherShards { get; set; } = 0;
 
     public int Wheat { get; set; } = 0;
     public int Potato { get; set; } = 0;
@@ -131,6 +152,12 @@ public class GameStateService
     public void AddOre(int amount)
     {
         Ore += amount;
+        Notify();
+    }
+
+    public void AddAetherShards(int amount)
+    {
+        AetherShards += amount;
         Notify();
     }
 
@@ -239,6 +266,7 @@ public class GameStateService
         Wheat = 0;
         Potato = 0;
         Corn = 0;
+        AetherShards = 0;
         Notify();
     }
 
@@ -255,6 +283,7 @@ public class GameStateService
         Wheat = savedState.Wheat;
         Potato = savedState.Potato;
         Corn = savedState.Corn;
+        AetherShards = savedState.AetherShards;
         Notify();
     }
 

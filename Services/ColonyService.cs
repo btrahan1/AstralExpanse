@@ -202,8 +202,42 @@ public class ColonyService
         };
 
         var roverJson = await _http.GetStringAsync("assets/rover.json");
-        await _babylon.SpawnRover(roverJson, spawnPos);
+        await _babylon.SpawnRover(roverId, roverJson, spawnPos);
         await _babylon.SetCameraTarget(spawnPos[0], spawnPos[1], spawnPos[2]);
+        
+        _gameState.Notify();
+        return true;
+    }
+
+    public async Task<bool> BuildSurfaceMiner(string planetId, string monolithId)
+    {
+        if (_gameState.Ore < 300) return false;
+
+        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        if (planet == null) return false;
+
+        var monolith = planet.Monoliths.Find(m => m.Id == monolithId);
+        if (monolith == null) return false;
+
+        _gameState.Ore -= 300;
+        
+        var minerId = $"SurfaceMiner_{planetId}_{System.Guid.NewGuid().ToString()[..4]}";
+        var hubPos = new float[] { planet.Position[0], planet.Position[1] + 26.5f, planet.Position[2] };
+        
+        var miner = new SurfaceMinerData
+        {
+            Id = minerId,
+            Position = (float[])hubPos.Clone(),
+            TargetMonolithId = monolithId,
+            OwnerPlanetId = planetId,
+            State = ShipState.MovingToAsteroid,
+            Cargo = 0
+        };
+
+        planet.SurfaceMiners.Add(miner);
+        
+        var minerJson = await _http.GetStringAsync("assets/surface_miner.json");
+        await _babylon.SpawnSurfaceMiner(minerId, hubPos, monolith.Position, hubPos, minerJson);
         
         _gameState.Notify();
         return true;
@@ -219,6 +253,25 @@ public class ColonyService
     {
         var planet = _gameState.Planets.Find(p => p.Id == planetId);
         if (planet == null) return;
+
+        // Retroactive Seeding for existing planets
+        if (!planet.MonolithsSeeded)
+        {
+            var rnd = new Random();
+            for (int i = 0; i < 3; i++)
+            {
+                float mAngle = (float)(rnd.NextDouble() * Math.PI * 2);
+                float mDist = 200 + (float)(rnd.NextDouble() * 400);
+                planet.Monoliths.Add(new MonolithData 
+                { 
+                    Id = $"Monolith_{planetId}_{i}",
+                    Position = new float[] { planet.Position[0] + (float)Math.Cos(mAngle) * mDist, planet.Position[1] + 26.5f, planet.Position[2] + (float)Math.Sin(mAngle) * mDist },
+                    IsDiscovered = false
+                });
+            }
+            planet.MonolithsSeeded = true;
+            _gameState.Notify();
+        }
 
         foreach (var building in planet.Buildings)
         {
@@ -236,7 +289,24 @@ public class ColonyService
         if (planet.Rover != null)
         {
             var roverJson = await _http.GetStringAsync("assets/rover.json");
-            await _babylon.SpawnRover(roverJson, planet.Rover.Position);
+            await _babylon.SpawnRover(planet.Rover.Id, roverJson, planet.Rover.Position);
+        }
+
+        var monolithJson = await _http.GetStringAsync("assets/monolith.json");
+        foreach (var m in planet.Monoliths)
+        {
+            await _babylon.RegisterMonolith(m.Id, m.Position, m.IsDiscovered, monolithJson);
+        }
+        
+        var minerJson = await _http.GetStringAsync("assets/surface_miner.json");
+        var hubPos = new float[] { planet.Position[0], planet.Position[1] + 26.5f, planet.Position[2] };
+        foreach (var sm in planet.SurfaceMiners)
+        {
+            var targetMonolith = planet.Monoliths.Find(m => m.Id == sm.TargetMonolithId);
+            if (targetMonolith != null)
+            {
+                await _babylon.SpawnSurfaceMiner(sm.Id, sm.Position, targetMonolith.Position, hubPos, minerJson);
+            }
         }
     }
 }

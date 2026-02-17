@@ -10,15 +10,19 @@ window.AstralEngine = {
     isSurfaceView: false,
     blueprintMesh: null,
     isPlacing: false,
-    dotNetHelper: null,
     constructionUI: {}, // id -> { container, bar, text }
     rovers: {}, // id -> { root, velocity, speed, facingAngle, input, isActive, ui }
+    monoliths: {}, // id -> { root, isDiscovered }
+    surfaceMiners: {}, // id -> { root, targetMonolithPos, colonyPos, state, cargo }
     inputMap: {},
 
-    spawnRover: function (jsonData, position) {
+    spawnRover: function (id, jsonData, position) {
         if (!this.scene) return;
+        if (this.rovers[id]) {
+            // Already exists, just update position if needed
+            return id;
+        }
         const modelData = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
-        const id = "Rover_" + Date.now();
 
         // Physics Root
         const root = BABYLON.MeshBuilder.CreateBox(id, { size: 1 }, this.scene);
@@ -100,10 +104,28 @@ window.AstralEngine = {
 
             let throttle = 0;
             let steer = 0;
-            if (input["w"] || input["ArrowUp"]) throttle = 1;
-            if (input["s"] || input["ArrowDown"]) throttle = -0.5;
-            if (input["a"] || input["ArrowLeft"]) steer = -1;
-            if (input["d"] || input["ArrowRight"]) steer = 1;
+
+            // Autodrive Logic
+            if (rover.autodrive && rover.target) {
+                const targetVec = new BABYLON.Vector3(rover.target[0], rover.root.position.y, rover.target[2]);
+                const diff = targetVec.subtract(rover.root.position);
+                const dist = diff.length();
+
+                if (dist > 5) {
+                    const targetAngle = Math.atan2(diff.x, diff.z);
+                    rover.facingAngle = BABYLON.Scalar.LerpAngle(rover.facingAngle, targetAngle, 2.0 * dt);
+                    throttle = 0.8; // Moving at steady speed
+                } else {
+                    rover.autodrive = false;
+                    throttle = 0;
+                    if (this.dotNetRef) this.dotNetRef.invokeMethodAsync('NotifyAutodriveComplete', id);
+                }
+            } else {
+                if (input["w"] || input["ArrowUp"]) throttle = 1;
+                if (input["s"] || input["ArrowDown"]) throttle = -0.5;
+                if (input["a"] || input["ArrowLeft"]) steer = -1;
+                if (input["d"] || input["ArrowRight"]) steer = 1;
+            }
 
             // Acceleration
             if (throttle !== 0) {
@@ -144,6 +166,79 @@ window.AstralEngine = {
             const pitch = -Math.atan2(nextH - groundH, 1.0);
             if (rover.visuals && rover.visuals.rotation) {
                 rover.visuals.rotation.x = BABYLON.Scalar.Lerp(rover.visuals.rotation.x, pitch, 5 * dt);
+            }
+
+            // Monolith Discovery Check
+            if (this.isSurfaceView && this.dotNetRef) {
+                for (let mId in this.monoliths) {
+                    const monolith = this.monoliths[mId];
+                    if (!monolith.isDiscovered) {
+                        const dist = BABYLON.Vector3.Distance(rover.root.position, monolith.pos);
+                        if (dist < 40) { // Discovery range
+                            monolith.isDiscovered = true;
+                            this.dotNetRef.invokeMethodAsync('NotifyMonolithDiscovered', mId);
+                            this.loadProceduralModel(monolith.jsonData, [monolith.pos.x, monolith.pos.y, monolith.pos.z], 1.0, [0, 0, 0], mId);
+                        }
+                    }
+                }
+            }
+        }
+    },
+
+    registerMonolith: function (id, position, isDiscovered, jsonData) {
+        this.monoliths[id] = {
+            pos: new BABYLON.Vector3(position[0], position[1], position[2]),
+            isDiscovered: isDiscovered,
+            jsonData: jsonData
+        };
+        if (isDiscovered) {
+            this.loadProceduralModel(jsonData, position, 1.0, [0, 0, 0], id);
+        }
+    },
+
+    spawnSurfaceMiner: function (id, position, targetMonolithPos, colonyPos, jsonData) {
+        if (!this.scene) return;
+        this.loadProceduralModel(jsonData, position, 1.5, [0, 0, 0], id);
+        const node = this.scene.getNodeById(id);
+        this.surfaceMiners[id] = {
+            node: node,
+            targetMonolithPos: new BABYLON.Vector3(targetMonolithPos[0], targetMonolithPos[1], targetMonolithPos[2]),
+            colonyPos: new BABYLON.Vector3(colonyPos[0], colonyPos[1], colonyPos[2]),
+            state: "MovingToMonolith",
+            cargo: 0
+        };
+    },
+
+    updateSurfaceMiners: function (dt) {
+        for (let id in this.surfaceMiners) {
+            const miner = this.surfaceMiners[id];
+            if (!miner.node) continue;
+
+            const target = miner.state === "MovingToMonolith" ? miner.targetMonolithPos : miner.colonyPos;
+            const dist = BABYLON.Vector3.Distance(miner.node.position, target);
+
+            if (dist < 2.0) {
+                if (miner.state === "MovingToMonolith") {
+                    miner.state = "Mining";
+                    setTimeout(() => { miner.state = "ReturningToColony"; miner.cargo = 100; }, 3000);
+                } else if (miner.state === "ReturningToColony") {
+                    miner.state = "Unloading";
+                    if (this.dotNetRef) this.dotNetRef.invokeMethodAsync('NotifyMinerUnloaded', id, miner.cargo);
+                    setTimeout(() => { miner.state = "MovingToMonolith"; miner.cargo = 0; }, 2000);
+                }
+            } else if (miner.state === "MovingToMonolith" || miner.state === "ReturningToColony") {
+                const dir = target.subtract(miner.node.position).normalize();
+                miner.node.position.addInPlace(dir.scale(15 * dt));
+
+                // Ground Clamp
+                const groundH = this.getHeightAt ? this.getHeightAt(miner.node.position.x, miner.node.position.z) : miner.node.position.y;
+                miner.node.position.y = BABYLON.Scalar.Lerp(miner.node.position.y, groundH + 0.1, 10 * dt);
+
+                // Rotate to face travel
+                if (dir.length() > 0.01) {
+                    const targetAngle = Math.atan2(dir.x, dir.z);
+                    miner.node.rotation.y = BABYLON.Scalar.LerpAngle(miner.node.rotation.y, targetAngle, 5 * dt);
+                }
             }
         }
     },
@@ -245,6 +340,8 @@ window.AstralEngine = {
 
         // Reset
         this.rovers = {};
+        this.monoliths = {};
+        this.surfaceMiners = {};
         this.constructionUI = {};
         this.inputMap = {};
 
@@ -283,6 +380,7 @@ window.AstralEngine = {
         this.engine.runRenderLoop(() => {
             const dt = this.engine.getDeltaTime() / 1000;
             this.updateRovers(dt);
+            this.updateSurfaceMiners(dt);
             this.scene.render();
         });
 
@@ -514,13 +612,78 @@ window.AstralEngine = {
 
     getRadarData: function () {
         if (!this.scene) return [];
-        const nodes = this.scene.getNodes().filter(n => n.metadata && n.metadata.isRoot && n.isEnabled());
-        return nodes.map(n => ({
-            id: n.id,
-            name: n.metadata.name,
-            type: n.metadata.type,
-            pos: [n.position.x, n.position.z]
-        }));
+
+        let centerPos = null;
+        for (let id in this.rovers) {
+            if (this.rovers[id].isActive) {
+                centerPos = [this.rovers[id].root.position.x, this.rovers[id].root.position.z];
+                break;
+            }
+        }
+
+        // Filter for root nodes that are enabled
+        const nodes = this.scene.getNodes().filter(n =>
+            n.metadata &&
+            n.metadata.isRoot &&
+            n.isEnabled() &&
+            !n.id.startsWith("blueprint_") &&
+            !n.id.startsWith("ui_")
+        );
+
+        return {
+            center: centerPos,
+            entities: nodes.map(n => ({
+                id: n.id,
+                name: n.metadata.name || n.name,
+                type: n.metadata.type || "Other",
+                pos: [n.position.x, n.position.z]
+            }))
+        };
+    },
+
+    getNearestMonolithInfo: function (roverId) {
+        const rover = this.rovers[roverId];
+        if (!rover) return null;
+
+        let nearestId = null;
+        let minDist = Infinity;
+        let nearestPos = null;
+
+        for (let mId in this.monoliths) {
+            const monolith = this.monoliths[mId];
+            if (!monolith.isDiscovered) {
+                const dist = BABYLON.Vector3.Distance(rover.root.position, monolith.pos);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestId = mId;
+                    nearestPos = monolith.pos;
+                }
+            }
+        }
+
+        if (!nearestId) return null;
+
+        const diff = nearestPos.subtract(rover.root.position);
+        const bearing = Math.atan2(diff.x, diff.z);
+
+        // Relativize bearing to rover facing
+        let relativeBearing = bearing - rover.facingAngle;
+        while (relativeBearing > Math.PI) relativeBearing -= Math.PI * 2;
+        while (relativeBearing < -Math.PI) relativeBearing += Math.PI * 2;
+
+        return {
+            distance: minDist,
+            bearing: relativeBearing,
+            id: nearestId
+        };
+    },
+
+    setRoverAutodrive: function (id, active, target = null) {
+        const rover = this.rovers[id];
+        if (rover) {
+            rover.autodrive = active;
+            rover.target = target;
+        }
     },
 
     setCameraTarget: function (x, y, z) {
@@ -593,6 +756,9 @@ window.AstralEngine = {
         const targetNode = hubNode || planetNode;
         const targetPos = targetNode ? targetNode.absolutePosition.clone() : BABYLON.Vector3.Zero();
 
+        this.monoliths = {};
+        this.surfaceMiners = {};
+
         // 1. Hide Space Objects
         this.scene.getNodes().forEach(node => {
             if (node.id === "terrain") return;
@@ -600,7 +766,9 @@ window.AstralEngine = {
             if (node.metadata && node.metadata.isRoot) {
                 const isHub = node.id.startsWith("Hub_" + planetId);
                 const isBuilding = node.id.startsWith("ColonyBuilding_" + planetId);
-                node.setEnabled(isHub || isBuilding);
+                const isUnit = node.id.startsWith("Rover") || node.id.startsWith("SurfaceMiner");
+                const isMonolith = node.id.startsWith("Monolith");
+                node.setEnabled(isHub || isBuilding || isUnit || isMonolith);
             }
         });
 
@@ -652,8 +820,8 @@ window.AstralEngine = {
         this.camera.upperBetaLimit = Math.PI / 2.1;
     },
 
-    startPlacement: function (json, dotNetHelper) {
-        this.dotNetHelper = dotNetHelper;
+    startPlacement: function (json, dotNetRef) {
+        if (dotNetRef) this.dotNetRef = dotNetRef;
         this.cancelPlacement();
 
         try {
@@ -685,7 +853,7 @@ window.AstralEngine = {
                 if (evt.button === 0) { // Left click
                     const pos = [this.blueprintMesh.position.x, this.blueprintMesh.position.y, this.blueprintMesh.position.z];
                     this.isPlacing = false;
-                    this.dotNetHelper.invokeMethodAsync('FinalizePlacement', pos);
+                    this.dotNetRef.invokeMethodAsync('FinalizePlacement', pos);
                     this.cancelPlacement();
                 }
             };

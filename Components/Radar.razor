@@ -50,11 +50,12 @@
 
 @code {
     [Parameter] public bool Visible { get; set; } = true;
+    [Parameter] public bool IsPlanetaryView { get; set; } = false;
     [Parameter] public EventCallback<float[]> OnLocationSelected { get; set; }
 
     private List<RadarEntity> _entities = new();
     private System.Timers.Timer? _timer;
-    private const float Scale = 0.12f; // Maps ~800 units to ~100px
+    private float Scale => IsPlanetaryView ? 0.15f : 0.12f; 
     private float _radarCenterX = 0;
     private float _radarCenterZ = 0;
 
@@ -63,7 +64,15 @@
         _timer = new System.Timers.Timer(500);
         _timer.Elapsed += async (s, e) => {
             try {
-                _entities = await BabylonService.GetRadarData();
+                var data = await BabylonService.GetRadarData();
+                _entities = data.Entities;
+                
+                if (IsPlanetaryView && data.Center != null)
+                {
+                    _radarCenterX = data.Center[0];
+                    _radarCenterZ = data.Center[1];
+                }
+                
                 await InvokeAsync(StateHasChanged);
             } catch {
                 // Ignore transient errors during disposal or init
@@ -115,15 +124,23 @@
         "Station" => 4,
         "SubStation" => 3,
         "Ship" => 2,
+        "SurfaceMiner" => 2,
+        "Rover" => 2.5f,
         "Asteroid" => 1.5f,
-        _ => 2
+        "Monolith" => 3,
+        "Building" => 1.5f,
+        _ => 1.5f
     };
 
     private string GetClass(string type) => type switch {
         "Station" => "station",
         "SubStation" => "substation",
         "Ship" => "ship",
+        "SurfaceMiner" => "ship",
+        "Rover" => "ship",
         "Asteroid" => "asteroid",
+        "Monolith" => "asteroid",
+        "Building" => "building",
         _ => "other"
     };
 
@@ -145,8 +162,8 @@
 
     .radar-frame {
         position: relative;
-        width: 180px;
-        height: 180px;
+        width: 360px;
+        height: 360px;
         background: rgba(0, 0, 0, 0.4);
         border: 2px solid rgba(68, 136, 255, 0.5);
         border-radius: 50%;
@@ -172,8 +189,9 @@
     }
 
     .radar-bg {
-        fill: rgba(10, 20, 40, 0.6);
-        stroke: none;
+        fill: rgba(5, 10, 20, 0.9);
+        stroke: rgba(68, 136, 255, 0.5);
+        stroke-width: 1;
     }
 
     .radar-ring {
@@ -189,13 +207,14 @@
 
     .radar-sweep {
         fill: none;
-        stroke: rgba(68, 136, 255, 0.1);
-        stroke-width: 100;
+        stroke: rgba(68, 136, 255, 0.3);
+        stroke-width: 125;
         stroke-dasharray: 0 314;
         animation: sweep 4s linear infinite;
         transform-origin: center;
-        opacity: 0.3;
+        opacity: 0.2;
         pointer-events: none;
+        filter: blur(2px);
     }
 
     @@keyframes sweep {
@@ -206,6 +225,7 @@
     .marker {
         stroke-width: 1;
         pointer-events: none;
+        fill: #666;
     }
 
     .marker.station {
@@ -237,13 +257,21 @@
         filter: drop-shadow(0 0 1px #888888);
     }
 
+    .marker.building {
+        fill: #4488ff;
+        stroke: #ffffff;
+        stroke-width: 0.8;
+        opacity: 0.9;
+        filter: drop-shadow(0 0 2px rgba(68,136,255,0.5));
+    }
+
     .radar-label {
         position: absolute;
-        bottom: -20px;
+        bottom: -25px;
         left: 50%;
         transform: translateX(-50%);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        font-size: 0.65rem;
+        font-size: 0.8rem;
         color: #4488ff;
         letter-spacing: 2px;
         text-transform: uppercase;

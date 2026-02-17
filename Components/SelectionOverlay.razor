@@ -13,7 +13,17 @@
         }
         else if (!string.IsNullOrEmpty(SelectedAsteroidId))
         {
-            <span>Target: <strong>@SelectedAsteroidId</strong> | Ore: <span class="ore-stat">@AsteroidOre</span></span>
+            @if (SelectedAsteroidId.StartsWith("Monolith"))
+            {
+                <div class="monolith-selection">
+                    <span>Aether Monolith Detected</span>
+                    <button class="mine-btn" @onclick="() => OnMineMonolith.InvokeAsync(SelectedAsteroidId)">HARVEST SHARDS (300 ORE)</button>
+                </div>
+            }
+            else
+            {
+                <span>Target: <strong>@SelectedAsteroidId</strong> | Ore: <span class="ore-stat">@AsteroidOre</span></span>
+            }
         }
     </div>
 }
@@ -23,6 +33,7 @@
     [Parameter] public string? SelectedAsteroidId { get; set; }
     [Parameter] public string? SelectedStationId { get; set; }
     [Parameter] public int AsteroidOre { get; set; }
+    [Parameter] public EventCallback<string> OnMineMonolith { get; set; }
 }
 
 <style>
@@ -34,8 +45,12 @@
         border-radius: 4px;
         display: inline-block;
         border: 1px solid rgba(68, 136, 255, 0.4);
+        pointer-events: auto;
     }
     .ship-id { color: #4488ff; font-weight: bold; }
     .asteroid-info { border-color: #ff9900; background: rgba(255, 153, 0, 0.1); }
     .ore-stat { color: #ffcc00; font-weight: bold; }
+    .monolith-selection { display: flex; flex-direction: column; align-items: start; gap: 5px; }
+    .mine-btn { background: #00ffff; color: #000; border: none; padding: 2px 10px; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
+    .mine-btn:hover { background: #88ffff; }
 </style>

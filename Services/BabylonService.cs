@@ -10,6 +10,9 @@ public class BabylonService
     private TaskCompletionSource<float[]?>? _placementTcs;
 
     public event Action<string, string, string>? OnObjectClicked;
+    public event Action<string>? OnMonolithDiscovered;
+    public event Action<string, int>? OnMinerUnloaded;
+    public event Action<string>? OnAutodriveComplete;
 
     public BabylonService(IJSRuntime jsRuntime)
     {
@@ -36,6 +39,16 @@ public class BabylonService
     public async Task MoveModel(string id, float[] targetPos, float duration)
     {
         await _jsRuntime.InvokeVoidAsync("AstralEngine.moveModel", id, targetPos, duration);
+    }
+
+    public async Task UpdateRoverAutodrive(string id, bool active, float[]? target = null)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.setRoverAutodrive", id, active, target);
+    }
+
+    public async Task<MonolithSensorData?> GetNearestMonolithInfo(string roverId)
+    {
+        return await _jsRuntime.InvokeAsync<MonolithSensorData?>("AstralEngine.getNearestMonolithInfo", roverId);
     }
 
     public async Task SetSelected(string? id)
@@ -73,9 +86,9 @@ public class BabylonService
         return await _jsRuntime.InvokeAsync<float[]?>("AstralEngine.getModelPosition", id);
     }
 
-    public async Task<List<RadarEntity>> GetRadarData()
+    public async Task<RadarData> GetRadarData()
     {
-        return await _jsRuntime.InvokeAsync<List<RadarEntity>>("AstralEngine.getRadarData");
+        return await _jsRuntime.InvokeAsync<RadarData>("AstralEngine.getRadarData");
     }
 
     public event Action<string>? OnMoveComplete;
@@ -105,6 +118,34 @@ public class BabylonService
         OnObjectClicked?.Invoke(type, name, id);
     }
 
+    [JSInvokable]
+    public void NotifyMonolithDiscovered(string id)
+    {
+        OnMonolithDiscovered?.Invoke(id);
+    }
+
+    [JSInvokable]
+    public void NotifyMinerUnloaded(string id, int amount)
+    {
+        OnMinerUnloaded?.Invoke(id, amount);
+    }
+
+    [JSInvokable]
+    public void NotifyAutodriveComplete(string id)
+    {
+        OnAutodriveComplete?.Invoke(id);
+    }
+    
+    public async Task RegisterMonolith(string id, float[] position, bool isDiscovered, string jsonData)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.registerMonolith", id, position, isDiscovered, jsonData);
+    }
+
+    public async Task SpawnSurfaceMiner(string id, float[] position, float[] targetMonolithPos, float[] colonyPos, string jsonData)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.spawnSurfaceMiner", id, position, targetMonolithPos, colonyPos, jsonData);
+    }
+
     public async Task<float[]?> StartPlacement(string json)
     {
         _objRef ??= DotNetObjectReference.Create(this);
@@ -125,9 +166,9 @@ public class BabylonService
         _placementTcs?.TrySetResult(position);
     }
 
-    public async Task<string> SpawnRover(string json, float[] position)
+    public async Task<string> SpawnRover(string id, string json, float[] position)
     {
-        return await _jsRuntime.InvokeAsync<string>("AstralEngine.spawnRover", json, position);
+        return await _jsRuntime.InvokeAsync<string>("AstralEngine.spawnRover", id, json, position);
     }
 
     public async Task UpdateRoverInput(string id, Dictionary<string, bool> input)
@@ -154,4 +195,17 @@ public class BabylonService
     {
         _objRef?.Dispose();
     }
+}
+
+public class RadarData
+{
+    public float[]? Center { get; set; }
+    public List<RadarEntity> Entities { get; set; } = new();
+}
+
+public class MonolithSensorData
+{
+    public float Distance { get; set; }
+    public float Bearing { get; set; }
+    public string Id { get; set; } = "";
 }

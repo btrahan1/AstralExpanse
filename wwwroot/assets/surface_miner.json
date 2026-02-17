@@ -1,0 +1,160 @@
+{
+    "Name": "Surface_Miner",
+    "Type": "SurfaceMiner",
+    "Parts": [
+        {
+            "Id": "Body",
+            "Shape": "Box",
+            "Scale": [
+                2,
+                0.8,
+                1.5
+            ],
+            "Position": [
+                0,
+                0.5,
+                0
+            ],
+            "ColorHex": "#ffcc00",
+            "Material": "Metallic"
+        },
+        {
+            "Id": "Wheel_FL",
+            "Shape": "Cylinder",
+            "Scale": [
+                0.6,
+                0.3,
+                0.6
+            ],
+            "Position": [
+                0.8,
+                0.3,
+                1
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "ColorHex": "#333333",
+            "Material": "Rubber"
+        },
+        {
+            "Id": "Wheel_FR",
+            "Shape": "Cylinder",
+            "Scale": [
+                0.6,
+                0.3,
+                0.6
+            ],
+            "Position": [
+                -0.8,
+                0.3,
+                1
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "ColorHex": "#333333",
+            "Material": "Rubber"
+        },
+        {
+            "Id": "Wheel_BL",
+            "Shape": "Cylinder",
+            "Scale": [
+                0.6,
+                0.3,
+                0.6
+            ],
+            "Position": [
+                0.8,
+                0.3,
+                -1
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "ColorHex": "#333333",
+            "Material": "Rubber"
+        },
+        {
+            "Id": "Wheel_BR",
+            "Shape": "Cylinder",
+            "Scale": [
+                0.6,
+                0.3,
+                0.6
+            ],
+            "Position": [
+                -0.8,
+                0.3,
+                -1
+            ],
+            "Rotation": [
+                0,
+                0,
+                90
+            ],
+            "ColorHex": "#333333",
+            "Material": "Rubber"
+        },
+        {
+            "Id": "Mining_Arm",
+            "Shape": "Box",
+            "Scale": [
+                0.3,
+                2,
+                0.3
+            ],
+            "Position": [
+                0,
+                1.5,
+                0.8
+            ],
+            "Rotation": [
+                -45,
+                0,
+                0
+            ],
+            "ColorHex": "#aaaaaa",
+            "Material": "Metallic"
+        },
+        {
+            "Id": "Drill",
+            "Shape": "Cone",
+            "Scale": [
+                0.5,
+                1,
+                0.5
+            ],
+            "Position": [
+                0,
+                2.2,
+                1.3
+            ],
+            "Rotation": [
+                -135,
+                0,
+                0
+            ],
+            "ColorHex": "#555555",
+            "Material": "Metallic"
+        }
+    ],
+    "Timeline": [
+        {
+            "TargetId": "Drill",
+            "Action": "Rotate",
+            "Value": [
+                0,
+                0,
+                360
+            ],
+            "Duration": 2
+        }
+    ]
+}
