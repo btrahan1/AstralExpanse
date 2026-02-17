@@ -9,7 +9,7 @@ public class BabylonService
     private DotNetObjectReference<BabylonService>? _objRef;
     private TaskCompletionSource<float[]?>? _placementTcs;
 
-    public event Action<string, string>? OnObjectClicked;
+    public event Action<string, string, string>? OnObjectClicked;
 
     public BabylonService(IJSRuntime jsRuntime)
     {
@@ -22,10 +22,6 @@ public class BabylonService
         await _jsRuntime.InvokeVoidAsync("AstralEngine.init", canvasId, _objRef);
     }
 
-    public async Task SpawnAsteroidField(string jsonContent, int count, float radius)
-    {
-        await _jsRuntime.InvokeVoidAsync("AstralEngine.spawnAsteroidField", jsonContent, count, radius);
-    }
 
     public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null, string? id = null)
     {
@@ -104,9 +100,9 @@ public class BabylonService
     }
 
     [JSInvokable]
-    public void OnObjectPicked(string name, string id)
+    public void OnObjectPicked(string type, string name, string id)
     {
-        OnObjectClicked?.Invoke(name, id);
+        OnObjectClicked?.Invoke(type, name, id);
     }
 
     public async Task<float[]?> StartPlacement(string json)
@@ -127,6 +123,31 @@ public class BabylonService
     public void FinalizePlacement(float[] position)
     {
         _placementTcs?.TrySetResult(position);
+    }
+
+    public async Task<string> SpawnRover(string json, float[] position)
+    {
+        return await _jsRuntime.InvokeAsync<string>("AstralEngine.spawnRover", json, position);
+    }
+
+    public async Task UpdateRoverInput(string id, Dictionary<string, bool> input)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.updateRoverInput", id, input);
+    }
+
+    public async Task SetRoverActive(string id, bool active)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.setRoverActive", id, active);
+    }
+
+    public async Task UpdateConstructionProgress(string id, string type, float progress, float[] position)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.updateConstructionProgress", id, type, progress, position);
+    }
+
+    public async Task RemoveConstructionProgress(string id)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.removeConstructionProgress", id);
     }
 
     public void Dispose()

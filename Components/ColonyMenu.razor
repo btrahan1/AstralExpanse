@@ -2,6 +2,7 @@
 @inject ColonyService Colony
 @inject GameStateService GameState
 @inject BabylonService Babylon
+@inject RoverService RoverService
 
 @if (Show)
 {
@@ -95,6 +96,40 @@
                                 </div>
                             </div>
                         }
+                    </div>
+                }
+
+
+
+                <div class="section-header">ROVER OPERATIONS</div>
+
+                @if (planet?.Rover == null)
+                {
+                    <div class="building-item" @onclick='() => Colony.BuildRover(PlanetId)'>
+                        <div class="building-info">
+                            <span class="building-type">Planetary Rover Mark V</span>
+                            <span class="building-cost">Price: 1,200 Ore</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="building-item status-ok">
+                        <div class="building-info" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <div>
+                                <span class="building-type">Rover Status: DEPLOYED</span>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                @if (!RoverService.IsDriving)
+                                {
+                                    <button class="action-btn drive" @onclick="() => RoverService.EnterDriveMode(planet.Rover.Id)">DRIVE</button>
+                                }
+                                else
+                                {
+                                    <button class="action-btn exit" @onclick="RoverService.ExitDriveMode">EXIT</button>
+                                }
+                            </div>
+                        </div>
                     </div>
                 }
 
@@ -370,6 +405,35 @@
         transition: width 1s linear;
     }
 
+    .progress-fill.construction {
+        background: #ffcc00;
+        box-shadow: 0 0 10px #ffcc00;
+    }
+
+    .construction-list {
+        margin-bottom: 20px;
+    }
+
+    .construction-item {
+        background: rgba(255, 200, 0, 0.05);
+        border: 1px solid rgba(255, 204, 0, 0.2);
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .project-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        font-weight: bold;
+        margin-bottom: 6px;
+        color: #ffcc00;
+    }
+
+    .project-name { color: #ffffff; }
+    .project-time { color: #aaaaaa; }
+
     .locate-btn {
         background: rgba(68, 136, 255, 0.3);
         border: 1px solid #4488ff;
@@ -383,5 +447,34 @@
 
     .locate-btn:hover {
         background: #4488ff;
+    }
+    .action-btn {
+        padding: 5px 15px;
+        border: 1px solid #4488ff;
+        background: rgba(68, 136, 255, 0.2);
+        color: #4488ff;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.8rem;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .action-btn:hover {
+        background: #4488ff;
+        color: white;
+        box-shadow: 0 0 10px rgba(68, 136, 255, 0.5);
+    }
+
+    .action-btn.exit {
+        border-color: #ff4444;
+        background: rgba(255, 68, 68, 0.2);
+        color: #ff4444;
+    }
+
+    .action-btn.exit:hover {
+        background: #ff4444;
+        color: white;
+        box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
     }
 </style>

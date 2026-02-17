@@ -33,6 +33,14 @@ public class MissionService
         await _babylon.MoveModel(shipId, asteroidPos, GetMoveDuration(shipPos, asteroidPos, 20.0f));
     }
 
+    public async Task StartProbeSearch(string shipId)
+    {
+        if (!_gameState.ActiveMissions.TryGetValue(shipId, out var mission)) return;
+        mission.State = ShipState.Searching;
+        var target = new float[] { 2000, 0, 2000 };
+        await _babylon.MoveModel(shipId, target, 180.0f); // 3 minutes
+    }
+
     public async Task StartColonizationMission(string shipId, string planetId)
     {
         var planet = _gameState.Planets.Find(p => p.Id == planetId);
@@ -77,7 +85,14 @@ public class MissionService
             }
             else if (mission.State == ShipState.Searching)
             {
-                mission.State = ShipState.Idle;
+                if (mission.Type == GameUnitType.ProbeUnit)
+                {
+                    await DiscoverPlanet(id);
+                }
+                else
+                {
+                    mission.State = ShipState.Idle;
+                }
             }
             else if (mission.State == ShipState.Patrolling)
             {
@@ -190,6 +205,33 @@ public class MissionService
             (float)(Math.Sin(angle) * radius) 
         };
     }
+
+    private async Task DiscoverPlanet(string probeId)
+    {
+        var rnd = new Random();
+        string id = $"Planet_{Guid.NewGuid().ToString()[..8]}";
+        float angle = (float)(rnd.NextDouble() * Math.PI * 2);
+        float[] pos = { (float)Math.Cos(angle) * 2500.0f, 0, (float)Math.Sin(angle) * 2500.0f };
+        var planet = new PlanetData { Id = id, Name = "Aethelgard Prime", Position = pos, IsDiscovered = true };
+        
+        _gameState.Planets.Add(planet);
+        _gameState.Fleet.Remove(probeId);
+        _gameState.ActiveMissions.Remove(probeId);
+        
+        await _babylon.LoadModel(GeneratePlanetJson(planet.Name), pos, scale: 50.0f, id: id);
+        await _babylon.DestroyModel(probeId, "collapse");
+        
+        _gameState.Notify();
+    }
+
+    public string GeneratePlanetJson(string name) => $@"{{ 
+        ""Name"": ""{name}"", 
+        ""Type"": ""Planet"", 
+        ""Parts"": [ 
+            {{ ""Id"": ""body"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1,1,1], ""ColorHex"": ""#554433"" }},
+            {{ ""Id"": ""atmo"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1.05,1.05,1.05], ""ColorHex"": ""#7eb6ff"", ""Material"": ""Glass"" }}
+        ] 
+    }}";
 
     public void RestartMissions()
     {

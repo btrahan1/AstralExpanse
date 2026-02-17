@@ -1,0 +1,68 @@
+@using AstralExpanse.Services
+@inject RoverService RoverService
+@inject GameStateService GameState
+
+@if (RoverService.IsDriving)
+{
+    <div class="rover-overlay">
+        <div class="rover-hud">
+            <button class="exit-btn" @onclick="RoverService.ExitDriveMode">
+                <span class="icon">⏻</span> EXIT ROVER
+            </button>
+            <div class="controls-hint">
+                [W][A][S][D] TO DRIVE
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .rover-overlay {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1000;
+        pointer-events: none;
+    }
+
+    .rover-hud {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        pointer-events: auto;
+    }
+
+    .exit-btn {
+        background: rgba(220, 50, 50, 0.8);
+        color: white;
+        border: 2px solid #ff4444;
+        padding: 15px 30px;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.2rem;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .exit-btn:hover {
+        background: #ff4444;
+        box-shadow: 0 0 25px rgba(255, 0, 0, 0.5);
+        transform: scale(1.05);
+    }
+
+    .controls-hint {
+        color: #88ccff;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.9rem;
+        text-shadow: 0 0 5px rgba(0, 0, 0, 1);
+        background: rgba(0, 0, 0, 0.5);
+        padding: 5px 15px;
+        border-radius: 20px;
+    }
+</style>

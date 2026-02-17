@@ -48,27 +48,76 @@ public class ColonyService
             var position = await _babylon.StartPlacement(json);
             if (position != null)
             {
-                bool success = false;
+                // Reset IsPlacing immediately after placement is confirmed
+                IsPlacing = false;
+
                 if (type == "Habitat")
                 {
                     // For Habitat, we deduct all resources
                     if (_gameState.TryDeductResources(1000, 1000, 1000, 1000))
                     {
-                        // 100s build duration
-                        await Task.Delay(100000);
-                        success = _gameState.TryBuildColonyBuilding(planetId, type, 0, position, populationBoost: 100);
+                        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+                        if (planet != null)
+                        {
+                            var projectId = $"Build_{Guid.NewGuid().ToString()[..4]}";
+                            var project = new ConstructionProject 
+                            { 
+                                Id = projectId, 
+                                BuildingType = type,
+                                Progress = 0,
+                                RemainingSeconds = 100,
+                                Position = position
+                            };
+                            planet.ConstructionProjects.Add(project);
+                            _gameState.Notify();
+
+                            // Run construction progress feedback in a non-blocking background task
+                            _ = Task.Run(async () => 
+                            {
+                                try
+                                {
+                                    const int totalSeconds = 100;
+                                    for (int i = 1; i <= totalSeconds; i++)
+                                    {
+                                        await Task.Delay(1000);
+                                        project.RemainingSeconds = totalSeconds - i;
+                                        project.Progress = (float)i / totalSeconds;
+                                        
+                                        // Update world-space UI
+                                        await _babylon.UpdateConstructionProgress(project.Id, type, project.Progress, position);
+                                        
+                                        _gameState.Notify();
+                                    }
+                                    
+                                    // Complete construction
+                                    planet.ConstructionProjects.Remove(project);
+                                    await _babylon.RemoveConstructionProgress(project.Id);
+
+                                    if (_gameState.TryBuildColonyBuilding(planetId, type, 0, position, populationBoost: 100))
+                                    {
+                                        var buildingId = $"ColonyBuilding_{planetId}_{type}_{Guid.NewGuid().ToString()[..4]}";
+                                        await _babylon.LoadModel(json, position, id: buildingId);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Log or handle error if needed
+                                    System.Console.WriteLine($"Error during background construction: {ex.Message}");
+                                }
+                            });
+                            
+                            return true;
+                        }
                     }
                 }
                 else
                 {
-                    success = _gameState.TryBuildColonyBuilding(planetId, type, cost, position);
-                }
-
-                if (success)
-                {
-                    var buildingId = $"ColonyBuilding_{planetId}_{type}_{System.Guid.NewGuid().ToString()[..4]}";
-                    await _babylon.LoadModel(json, position, id: buildingId);
-                    return true;
+                    if (_gameState.TryBuildColonyBuilding(planetId, type, cost, position))
+                    {
+                        var buildingId = $"ColonyBuilding_{planetId}_{type}_{System.Guid.NewGuid().ToString()[..4]}";
+                        await _babylon.LoadModel(json, position, id: buildingId);
+                        return true;
+                    }
                 }
             }
         }
@@ -125,6 +174,41 @@ public class ColonyService
         return true;
     }
 
+    public async Task<bool> BuildRover(string planetId)
+    {
+        if (_gameState.Ore < 1200) return false;
+
+        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        if (planet == null || planet.Rover != null) return false;
+
+        _gameState.Ore -= 1200;
+        
+        var roverId = $"Rover_{planetId}_{System.Guid.NewGuid().ToString()[..4]}";
+        var spawnPos = new float[] { 0, 0, 0 }; // Default center
+        
+        // Find a ResearchCenter or FarmHouse to spawn near
+        var spawnNear = planet.Buildings.Find(b => b.Type == "ResearchCenter") ?? planet.Buildings.Find(b => b.Type == "FarmHouse");
+        if (spawnNear != null)
+        {
+            spawnPos = new float[] { spawnNear.Position[0] + 25, spawnNear.Position[1], spawnNear.Position[2] + 25 };
+        }
+
+        planet.Rover = new RoverData
+        {
+            Id = roverId,
+            Position = spawnPos,
+            RotationY = 0,
+            IsActive = false
+        };
+
+        var roverJson = await _http.GetStringAsync("assets/rover.json");
+        await _babylon.SpawnRover(roverJson, spawnPos);
+        await _babylon.SetCameraTarget(spawnPos[0], spawnPos[1], spawnPos[2]);
+        
+        _gameState.Notify();
+        return true;
+    }
+
     public async Task CancelPlacement()
     {
         await _babylon.CancelPlacement();
@@ -147,6 +231,12 @@ public class ColonyService
         foreach (var bot in planet.Bots)
         {
             await _babylon.LoadModel(botJson, bot.Position, scale: 2.5f, id: bot.Id);
+        }
+
+        if (planet.Rover != null)
+        {
+            var roverJson = await _http.GetStringAsync("assets/rover.json");
+            await _babylon.SpawnRover(roverJson, planet.Rover.Position);
         }
     }
 }

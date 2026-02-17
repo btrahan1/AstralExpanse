@@ -1,9 +1,22 @@
 @using AstralExpanse.Services
 @inject GameStateService GameState
+@implements IDisposable
 
 <div class="stats">
     <span>Ore: <strong>@GameState.Ore</strong></span>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        GameState.OnStateChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        GameState.OnStateChanged -= StateHasChanged;
+    }
+}
 
 <style>
     .stats { 

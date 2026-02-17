@@ -93,20 +93,9 @@ public class ConstructionService
 
                 if (mission.Type == GameUnitType.ProbeUnit)
                 {
-                    _ = LaunchProbe(id);
+                    _ = _missionService.StartProbeSearch(id);
                 }
             }
-        }
-    }
-
-    private async Task LaunchProbe(string id)
-    {
-        if (_gameState.ActiveMissions.TryGetValue(id, out var mission))
-        {
-            mission.State = ShipState.Searching;
-            // Far off vector
-            var target = new float[] { 2000, 0, 2000 }; 
-            await _babylon.MoveModel(id, target, 180.0f); // 3 minutes
         }
     }
 

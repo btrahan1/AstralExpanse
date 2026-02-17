@@ -80,6 +80,23 @@ public class FarmingBot
     public string? LastTargetFieldId { get; set; }
 }
 
+public class ConstructionProject
+{
+    public string Id { get; set; } = string.Empty;
+    public string BuildingType { get; set; } = string.Empty;
+    public float Progress { get; set; } = 0; // 0 to 1
+    public float RemainingSeconds { get; set; } = 0;
+    public float[] Position { get; set; } = new float[3];
+}
+
+public class RoverData
+{
+    public string Id { get; set; } = string.Empty;
+    public float[] Position { get; set; } = new float[3];
+    public float RotationY { get; set; } = 0;
+    public bool IsActive { get; set; } = false;
+}
+
 public class PlanetData
 {
     public string Id { get; set; } = string.Empty;
@@ -90,7 +107,9 @@ public class PlanetData
     public string Type { get; set; } = "Terrestrial";
     public List<ColonyBuilding> Buildings { get; set; } = new List<ColonyBuilding>();
     public List<FarmingBot> Bots { get; set; } = new List<FarmingBot>();
+    public List<ConstructionProject> ConstructionProjects { get; set; } = new List<ConstructionProject>();
     public int Population { get; set; } = 0;
+    public RoverData? Rover { get; set; }
 }
 
 public class GameStateService
@@ -113,6 +132,14 @@ public class GameStateService
     {
         Ore += amount;
         Notify();
+    }
+
+    public void RegisterAsteroid(AsteroidData asteroid)
+    {
+        if (!Asteroids.Any(a => a.Id == asteroid.Id))
+        {
+            Asteroids.Add(asteroid);
+        }
     }
 
     public void RegisterShip(string id)

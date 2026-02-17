@@ -1,0 +1,152 @@
+{
+  "Name": "Planetary_Rover_Mark_V",
+  "Type": "Procedural",
+  "Parts": [
+    {
+      "Id": "chassis_main",
+      "ParentId": null,
+      "Shape": "Box",
+      "Position": [0, 0.6, 0],
+      "Rotation": [0, 0, 0],
+      "Scale": [1.6, 0.4, 2.8],
+      "ColorHex": "#E0E0E0",
+      "Material": "Metal",
+      "Operation": "Union"
+    },
+    {
+      "Id": "cockpit_glass",
+      "ParentId": null,
+      "Shape": "Sphere",
+      "Position": [0, 1.0, 0.6],
+      "Rotation": [0, 0, 0],
+      "Scale": [1.4, 1.0, 1.5],
+      "ColorHex": "#88CCFF",
+      "Material": "Glass",
+      "Operation": "Union"
+    },
+    {
+      "Id": "seat_base",
+      "ParentId": null,
+      "Shape": "Box",
+      "Position": [0, 0.85, 0.5],
+      "Rotation": [0, 0, 0],
+      "Scale": [0.6, 0.1, 0.6],
+      "ColorHex": "#333333",
+      "Material": "Leather",
+      "Operation": "Union"
+    },
+    {
+      "Id": "wheel_fl",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [1.0, 0.4, 1.0],
+      "Rotation": [0, 0, 90],
+      "Scale": [0.8, 0.4, 0.8],
+      "ColorHex": "#222222",
+      "Material": "Rubber",
+      "Operation": "Union"
+    },
+    {
+      "Id": "wheel_fr",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [-1.0, 0.4, 1.0],
+      "Rotation": [0, 0, 90],
+      "Scale": [0.8, 0.4, 0.8],
+      "ColorHex": "#222222",
+      "Material": "Rubber",
+      "Operation": "Union"
+    },
+    {
+      "Id": "wheel_ml",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [1.0, 0.4, 0.0],
+      "Rotation": [0, 0, 90],
+      "Scale": [0.8, 0.4, 0.8],
+      "ColorHex": "#222222",
+      "Material": "Rubber",
+      "Operation": "Union"
+    },
+    {
+      "Id": "wheel_mr",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [-1.0, 0.4, 0.0],
+      "Rotation": [0, 0, 90],
+      "Scale": [0.8, 0.4, 0.8],
+      "ColorHex": "#222222",
+      "Material": "Rubber",
+      "Operation": "Union"
+    },
+    {
+      "Id": "wheel_bl",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [1.0, 0.4, -1.0],
+      "Rotation": [0, 0, 90],
+      "Scale": [0.8, 0.4, 0.8],
+      "ColorHex": "#222222",
+      "Material": "Rubber",
+      "Operation": "Union"
+    },
+    {
+      "Id": "wheel_br",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [-1.0, 0.4, -1.0],
+      "Rotation": [0, 0, 90],
+      "Scale": [0.8, 0.4, 0.8],
+      "ColorHex": "#222222",
+      "Material": "Rubber",
+      "Operation": "Union"
+    },
+    {
+      "Id": "antenna_mast",
+      "ParentId": null,
+      "Shape": "Cylinder",
+      "Position": [0.5, 1.2, -0.8],
+      "Rotation": [0, 0, 0],
+      "Scale": [0.05, 1.0, 0.05],
+      "ColorHex": "#CCCCCC",
+      "Material": "Metal",
+      "Operation": "Union"
+    },
+    {
+      "Id": "antenna_dish",
+      "ParentId": null,
+      "Shape": "Sphere",
+      "Position": [0.5, 1.7, -0.8],
+      "Rotation": [30, 0, 0],
+      "Scale": [0.3, 0.1, 0.3],
+      "ColorHex": "#FFD700",
+      "Material": "Metal",
+      "Operation": "Union"
+    },
+    {
+      "Id": "headlight_l",
+      "ParentId": null,
+      "Shape": "Box",
+      "Position": [0.5, 0.6, 1.4],
+      "Rotation": [0, 0, 0],
+      "Scale": [0.3, 0.2, 0.1],
+      "ColorHex": "#FFFFFF",
+      "Material": "Glow",
+      "Operation": "Union"
+    },
+    {
+      "Id": "headlight_r",
+      "ParentId": null,
+      "Shape": "Box",
+      "Position": [-0.5, 0.6, 1.4],
+      "Rotation": [0, 0, 0],
+      "Scale": [0.3, 0.2, 0.1],
+      "ColorHex": "#FFFFFF",
+      "Material": "Glow",
+      "Operation": "Union"
+    }
+  ],
+  "Timeline": [
+ 
+  ]
+}

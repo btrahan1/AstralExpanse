@@ -10,6 +10,7 @@
 @inject ConstructionService Construction
 @inject ColonyService Colony
 @inject FarmingService Farming
+@inject RoverService RoverService
 @implements IDisposable
 
 <PageTitle>Astral Expanse</PageTitle>
@@ -36,13 +37,14 @@
     {
         <SurfaceOverlay OnReturn="ExitSurfaceView" />
         <ColonyMenu Show="_showColonyMenu" PlanetId="@_currentSurfacePlanetId" OnClose="() => _showColonyMenu = false" />
+        <RoverUI />
     }
 
     <StationPanel SelectedStationId="@_selectedStationId" OnSelectStation="HandleSelectStation" OnOpenShipyard="id => { _shipyardStationId = id; _showShipyard = true; }" OnInitiateStationTow="HandleInitiateStationTow" Visible="@(!_isSurfaceView)" />
 
     <Radar @ref="_radar" Visible="@(!_isSurfaceView)" OnLocationSelected="HandleRadarLocationSelected" />
 
-    <div class="ui-container" tabindex="-1">
+    <div class="ui-container" tabindex="-1" @onkeydown="HandleKeyDown" @onkeyup="HandleKeyUp">
         <div class="ui-overlay" style="@(_isSurfaceView ? "pointer-events: none; opacity: 0.5;" : "")">
             @if (!_isSurfaceView)
             {
@@ -153,6 +155,13 @@
     private async void HandleEscape()
     {
         await InvokeAsync(async () => {
+            if (RoverService.IsDriving)
+            {
+                await RoverService.ExitDriveMode();
+                StateHasChanged();
+                return;
+            }
+
             if (_showColonyMenu)
             {
                 _showColonyMenu = false;
@@ -180,8 +189,29 @@
         {
             await BuildNewShipInternal(GameUnitType.MinerUnit, "Ark_Colonization_Station");
             await BuildNewShipInternal(GameUnitType.ScoutUnit, "Ark_Colonization_Station");
+            
             var asteroidJson = await Http.GetStringAsync("assets/asteroid.json");
-            await BabylonService.SpawnAsteroidField(asteroidJson, 12, 800);
+            var rnd = new Random();
+            for (int i = 0; i < 15; i++)
+            {
+                float angle = (float)(rnd.NextDouble() * Math.PI * 2);
+                float dist = 700 + (float)(rnd.NextDouble() * 500);
+                float x = (float)Math.Cos(angle) * dist;
+                float z = (float)Math.Sin(angle) * dist;
+                float y = (float)(rnd.NextDouble() - 0.5) * 100;
+                
+                var asteroid = new AsteroidData
+                {
+                    Id = $"Asteroid_{Guid.NewGuid().ToString()[..4]}",
+                    Position = new float[] { x, y, z },
+                    Rotation = new float[] { (float)rnd.NextDouble() * 360, (float)rnd.NextDouble() * 360, (float)rnd.NextDouble() * 360 },
+                    Scale = 5.0f + (float)rnd.NextDouble() * 15.0f,
+                    Capacity = 10000
+                };
+                
+                GameState.Asteroids.Add(asteroid);
+                await BabylonService.LoadModel(asteroidJson, asteroid.Position, asteroid.Scale, asteroid.Rotation, asteroid.Id);
+            }
         }
         else
         {
@@ -199,7 +229,7 @@
             }
             foreach (var planet in GameState.Planets)
             {
-                var pJson = GeneratePlanetJson(planet.Name);
+                var pJson = Missions.GeneratePlanetJson(planet.Name);
                 await BabylonService.LoadModel(pJson, planet.Position, 50.0f, id: planet.Id);
                 
                 if (planet.IsColonized)
@@ -226,23 +256,42 @@
 
     private async Task BuildNewShipInternal(GameUnitType type, string stationId) => await Construction.BuildNewShipFromStation(type, stationId);
 
-    private async void HandleObjectClicked(string name, string id)
+    private async void HandleObjectClicked(string type, string name, string id)
     {
         _showMiningMenu = false;
-        _selectedAsteroidId = null;
 
         if (name == "Ark_Colonization_Station")
         {
             _selectedShipId = null;
+            _selectedAsteroidId = null;
             _selectedStationId = id;
             await CenterOnObject(id);
         }
-        else if (name.Contains("Ship") || name == "Venture_Mining_Vessel" || name == "Recon_Scout_Vessel" || name == "Apex_Interceptor" || name == "Titan_Tugboat" || name == "Colony_Ship_Vessel" || name == "Stellar_Probe")
+        else if (type == "Ship" || name.Contains("Ship") || name == "Venture_Mining_Vessel" || name == "Recon_Scout_Vessel" || name == "Apex_Interceptor" || name == "Titan_Tugboat" || name == "Colony_Ship_Vessel" || name == "Stellar_Probe")
         {
             _selectedShipId = id;
+            _selectedAsteroidId = null;
             _selectedStationId = null;
             await CenterOnObject(id);
             _isTowingMode = false;
+        }
+        else if (type == "Asteroid" || name == "Iron_Rich_Asteroid")
+        {
+            _selectedAsteroidId = id;
+            _selectedShipId = null;
+            _selectedStationId = null;
+            
+            if (IsSelectedShipOfType(GameUnitType.MinerUnit))
+            {
+                if (GameState.ActiveMissions.TryGetValue(_selectedShipId!, out var m) && m.State == ShipState.Idle)
+                {
+                    _targetAsteroidId = id;
+                    _targetAsteroidPos = await BabylonService.GetModelPosition(id);
+                    _mouseX = 400; _mouseY = 300;
+                    _showMiningMenu = true;
+                }
+            }
+            await CenterOnObject(id);
         }
         else if (name == "Modular_SubStation")
         {
@@ -335,40 +384,18 @@
         {
             if (m.Type == GameUnitType.ScoutUnit) { m.State = ShipState.Searching; var wp = GetRandomWaypoint(600, 1000); m.CurrentTarget = wp; await BabylonService.MoveModel(shipId, wp, 40.0f); }
             else if (m.Type == GameUnitType.FighterUnit) { m.State = ShipState.Patrolling; var wp = GetRandomWaypoint(150, 300); m.CurrentTarget = wp; await BabylonService.MoveModel(shipId, wp, 30.0f); }
-            else if (m.Type == GameUnitType.ProbeUnit) { m.State = ShipState.Searching; _ = HandleProbeSearchSequence(shipId); }
+            else if (m.Type == GameUnitType.ProbeUnit) { await Missions.StartProbeSearch(shipId); }
+            else if (m.Type == GameUnitType.ColonyShipUnit)
+            {
+                var target = GameState.Planets.Find(p => p.IsDiscovered && !p.IsColonized);
+                if (target != null)
+                {
+                    await Missions.StartColonizationMission(shipId, target.Id);
+                }
+            }
             await InvokeAsync(StateHasChanged);
         }
     }
-
-    private async Task HandleProbeSearchSequence(string probeId)
-    {
-        for (int i = 0; i < 36; i++) { await Task.Delay(5000); if (!GameState.ActiveMissions.ContainsKey(probeId)) return; }
-        await SpawnPlanet();
-        GameState.Fleet.Remove(probeId);
-        GameState.ActiveMissions.Remove(probeId);
-        await BabylonService.DestroyModel(probeId, "collapse");
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task SpawnPlanet()
-    {
-        var rnd = new Random();
-        string id = $"Planet_{Guid.NewGuid().ToString()[..8]}";
-        float angle = (float)(rnd.NextDouble() * Math.PI * 2);
-        float[] pos = { (float)Math.Cos(angle) * 2500.0f, 0, (float)Math.Sin(angle) * 2500.0f };
-        var planet = new PlanetData { Id = id, Name = "Aethelgard Prime", Position = pos, IsDiscovered = true };
-        GameState.Planets.Add(planet);
-        await BabylonService.LoadModel(GeneratePlanetJson(planet.Name), pos, scale: 50.0f, id: id);
-    }
-
-    private string GeneratePlanetJson(string name) => $@"{{ 
-        ""Name"": ""{name}"", 
-        ""Type"": ""Planet"", 
-        ""Parts"": [ 
-            {{ ""Id"": ""body"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1,1,1], ""ColorHex"": ""#554433"" }},
-            {{ ""Id"": ""atmo"", ""Shape"": ""Sphere"", ""Position"": [0,0,0], ""Rotation"": [0,0,0], ""Scale"": [1.05,1.05,1.05], ""ColorHex"": ""#7eb6ff"", ""Material"": ""Glass"" }}
-        ] 
-    }}";
 
     private async Task HandleSelectShipFromPanel(string id) { _selectedShipId = id; _selectedStationId = null; await CenterOnObject(id); StateHasChanged(); }
     private async Task HandleSelectStation(string id) { _selectedStationId = id; _selectedShipId = null; await CenterOnObject(id); StateHasChanged(); }
@@ -402,6 +429,7 @@
         _showColonyMenu = false; 
         Farming.CurrentPlanetId = null;
         await BabylonService.SetSpaceView(); 
+        if (RoverService.IsDriving) await RoverService.ExitDriveMode();
         await CenterOnObject("Ark_Colonization_Station"); 
         StateHasChanged(); 
     }
@@ -428,4 +456,7 @@
         BabylonService.OnEscapePressed -= HandleEscape;
         _saveTimer?.Dispose();
     }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e) => await RoverService.HandleKeyDown(e.Key);
+    private async Task HandleKeyUp(KeyboardEventArgs e) => await RoverService.HandleKeyUp(e.Key);
 }

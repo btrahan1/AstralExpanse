@@ -11,6 +11,211 @@ window.AstralEngine = {
     blueprintMesh: null,
     isPlacing: false,
     dotNetHelper: null,
+    constructionUI: {}, // id -> { container, bar, text }
+    rovers: {}, // id -> { root, velocity, speed, facingAngle, input, isActive, ui }
+    inputMap: {},
+
+    spawnRover: function (jsonData, position) {
+        if (!this.scene) return;
+        const modelData = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
+        const id = "Rover_" + Date.now();
+
+        // Physics Root
+        const root = BABYLON.MeshBuilder.CreateBox(id, { size: 1 }, this.scene);
+        root.position = new BABYLON.Vector3(position[0], position[1] + 2, position[2]);
+        root.isVisible = false;
+        root.metadata = { isRoot: true, type: "Rover", name: modelData.Name };
+
+        // Load Visuals
+        const visualsId = this.loadProceduralModel(jsonData, [0, 0, 0], 2.5, [0, 0, 0], id + "_visuals");
+        const visualsNode = this.scene.getNodeById(visualsId);
+        if (visualsNode) visualsNode.parent = root;
+
+        // Interaction UI (Drive Button)
+        const plane = BABYLON.MeshBuilder.CreatePlane("ui_" + id, { width: 4, height: 1.5 }, this.scene);
+        plane.position = new BABYLON.Vector3(0, 5, 0);
+        plane.parent = root;
+        plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+
+        const adt = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 512, 128);
+        const btn = BABYLON.GUI.Button.CreateSimpleButton("btn_" + id, "DRIVE ROVER");
+        btn.width = "100%";
+        btn.height = "100%";
+        btn.color = "white";
+        btn.background = "#4488ff";
+        btn.fontSize = 48;
+        btn.onPointerUpObservable.add(() => {
+            if (this.dotNetRef) this.dotNetRef.invokeMethodAsync("OnObjectPicked", "Rover", modelData.Name, id);
+        });
+        adt.addControl(btn);
+
+        this.rovers[id] = {
+            root: root,
+            visuals: visualsNode,
+            velocity: new BABYLON.Vector3(0, 0, 0),
+            speed: 0,
+            facingAngle: 0,
+            input: {},
+            isActive: false,
+            ui: plane
+        };
+
+        return id;
+    },
+
+    updateRoverInput: function (id, input) {
+        if (this.rovers[id]) {
+            this.rovers[id].input = input;
+        }
+    },
+
+    setRoverActive: function (id, active) {
+        const rover = this.rovers[id];
+        if (rover) {
+            rover.isActive = active;
+            rover.ui.setEnabled(!active);
+            if (active) {
+                this.camera.lockedTarget = rover.root;
+                this.camera.radius = 20;
+                this.camera.alpha = -Math.PI / 2;
+                this.camera.beta = Math.PI / 3;
+                this.inputMap = {}; // Reset input on entry
+            } else {
+                this.camera.lockedTarget = null;
+                this.camera.radius = 100;
+            }
+        }
+    },
+
+    updateRovers: function (dt) {
+        for (let id in this.rovers) {
+            const rover = this.rovers[id];
+            if (!rover.isActive) continue;
+
+            const input = this.inputMap || {};
+            const speedRatio = 1.0;
+            const baseSpeed = 40 * speedRatio;
+            const baseAccel = 25 * speedRatio;
+            const turnRate = 3.0;
+
+            let throttle = 0;
+            let steer = 0;
+            if (input["w"] || input["ArrowUp"]) throttle = 1;
+            if (input["s"] || input["ArrowDown"]) throttle = -0.5;
+            if (input["a"] || input["ArrowLeft"]) steer = -1;
+            if (input["d"] || input["ArrowRight"]) steer = 1;
+
+            // Acceleration
+            if (throttle !== 0) {
+                rover.speed += throttle * baseAccel * dt;
+            } else {
+                rover.speed = BABYLON.Scalar.Lerp(rover.speed, 0, 2.0 * dt);
+                if (Math.abs(rover.speed) < 0.1) rover.speed = 0;
+            }
+
+            // Cap Speed
+            if (rover.speed > baseSpeed) rover.speed = baseSpeed;
+            if (rover.speed < -15) rover.speed = -15;
+
+            // Turning
+            if (Math.abs(rover.speed) > 0.5) {
+                const turnFactor = throttle < 0 ? -1 : 1;
+                rover.facingAngle += steer * turnRate * dt * turnFactor;
+            }
+
+            rover.root.rotation.y = rover.facingAngle;
+
+            // Drift / Traction
+            const forwardDir = new BABYLON.Vector3(Math.sin(rover.facingAngle), 0, Math.cos(rover.facingAngle));
+            const targetVel = forwardDir.scale(rover.speed);
+            rover.velocity = BABYLON.Vector3.Lerp(rover.velocity, targetVel, 5.0 * dt);
+
+            // Move
+            rover.root.position.addInPlace(rover.velocity.scale(dt));
+
+            // Ground Clamp
+            const groundH = this.getHeightAt ? this.getHeightAt(rover.root.position.x, rover.root.position.z) : 0;
+            const targetY = groundH + 0.1;
+            rover.root.position.y = BABYLON.Scalar.Lerp(rover.root.position.y, targetY, 15.0 * dt);
+
+            // Visual Tilt
+            const nextPos = rover.root.position.add(forwardDir.scale(1.0));
+            const nextH = this.getHeightAt ? this.getHeightAt(nextPos.x, nextPos.z) : groundH;
+            const pitch = -Math.atan2(nextH - groundH, 1.0);
+            if (rover.visuals && rover.visuals.rotation) {
+                rover.visuals.rotation.x = BABYLON.Scalar.Lerp(rover.visuals.rotation.x, pitch, 5 * dt);
+            }
+        }
+    },
+
+    getHeightAt: function (x, z) {
+        if (!this.terrain) return 0;
+        return this.terrain.position.y + 0.2;
+    },
+
+    updateConstructionProgress: function (id, type, progress, position) {
+        if (!this.scene || !BABYLON.GUI) return;
+
+        let ui = this.constructionUI[id];
+        if (!ui) {
+            // Create New World UI for construction
+            const plane = BABYLON.MeshBuilder.CreatePlane("ui_" + id, { width: 25, height: 10 }, this.scene);
+            plane.position = new BABYLON.Vector3(position[0], position[1] + 15, position[2]);
+            plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            plane.isPickable = false;
+
+            const advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 512 * 5, 256 * 5);
+
+            const container = new BABYLON.GUI.Rectangle();
+            container.width = "90%";
+            container.height = "80%";
+            container.cornerRadius = 30;
+            container.color = "white";
+            container.thickness = 10;
+            container.background = "rgba(0, 0, 0, 0.6)";
+            advancedTexture.addControl(container);
+
+            const stack = new BABYLON.GUI.StackPanel();
+            container.addControl(stack);
+
+            const text = new BABYLON.GUI.TextBlock();
+            text.text = "CONSTRUCTING: " + type.toUpperCase();
+            text.color = "white";
+            text.fontSize = 120;
+            text.height = "200px";
+            stack.addControl(text);
+
+            const barBg = new BABYLON.GUI.Rectangle();
+            barBg.width = "80%";
+            barBg.height = "150px";
+            barBg.background = "rgba(255, 255, 255, 0.2)";
+            barBg.cornerRadius = 25;
+            stack.addControl(barBg);
+
+            const barFill = new BABYLON.GUI.Rectangle();
+            barFill.width = "0%";
+            barFill.height = "100%";
+            barFill.background = "#ffcc00";
+            barFill.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGN_LEFT;
+            barFill.cornerRadius = 5;
+            barBg.addControl(barFill);
+
+            ui = { mesh: plane, bar: barFill, advancedTexture: advancedTexture };
+            this.constructionUI[id] = ui;
+        }
+
+        // Update existing UI
+        ui.bar.width = (progress * 100) + "%";
+    },
+
+    removeConstructionProgress: function (id) {
+        const ui = this.constructionUI[id];
+        if (ui) {
+            ui.advancedTexture.dispose();
+            ui.mesh.dispose();
+            delete this.constructionUI[id];
+        }
+    },
 
     init: function (canvasId, dotNetRef) {
         this.canvas = document.getElementById(canvasId);
@@ -38,6 +243,22 @@ window.AstralEngine = {
         directionalLight.direction = new BABYLON.Vector3(-1, -2, -1);
         directionalLight.intensity = 0.8;
 
+        // Reset
+        this.rovers = {};
+        this.constructionUI = {};
+        this.inputMap = {};
+
+        // Input Handling
+        this.scene.actionManager = new BABYLON.ActionManager(this.scene);
+        this.scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyDownTrigger, (evt) => {
+            let key = evt.sourceEvent.key.toLowerCase();
+            this.inputMap[key] = true;
+        }));
+        this.scene.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnKeyUpTrigger, (evt) => {
+            let key = evt.sourceEvent.key.toLowerCase();
+            this.inputMap[key] = false;
+        }));
+
         // Selection Highlight Layer
         this.hl = new BABYLON.HighlightLayer("hl1", this.scene);
 
@@ -51,13 +272,17 @@ window.AstralEngine = {
                 }
 
                 if (this.dotNetRef) {
-                    this.dotNetRef.invokeMethodAsync("OnObjectPicked", target.metadata?.name || target.name, target.id);
+                    const type = target.metadata?.type || "Unknown";
+                    const name = target.metadata?.name || target.name;
+                    this.dotNetRef.invokeMethodAsync("OnObjectPicked", type, name, target.id);
                 }
             }
         };
 
         // Render Loop
         this.engine.runRenderLoop(() => {
+            const dt = this.engine.getDeltaTime() / 1000;
+            this.updateRovers(dt);
             this.scene.render();
         });
 
@@ -182,18 +407,6 @@ window.AstralEngine = {
         });
     },
 
-    spawnAsteroidField: function (jsonData, count, radius) {
-        for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = radius + Math.random() * radius;
-            const x = Math.cos(angle) * dist;
-            const z = Math.sin(angle) * dist;
-            const y = (Math.random() - 0.5) * 100;
-            const scale = 5 + Math.random() * 15;
-            const rot = [Math.random() * 360, Math.random() * 360, Math.random() * 360];
-            this.loadProceduralModel(jsonData, [x, y, z], scale, rot);
-        }
-    },
 
     setSelected: function (id) {
         if (this.selectedId) {
