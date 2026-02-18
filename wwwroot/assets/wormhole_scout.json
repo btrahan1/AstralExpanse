@@ -1,0 +1,86 @@
+{
+    "Name": "Wormhole Scout",
+    "Type": "Ship",
+    "Parts": [
+        {
+            "Id": "body",
+            "Shape": "Box",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.8,
+                0.4,
+                2.0
+            ],
+            "ColorHex": "#33ffcc"
+        },
+        {
+            "Id": "engine_l",
+            "Shape": "Box",
+            "Position": [
+                -0.5,
+                0,
+                -0.8
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.2,
+                0.2,
+                0.6
+            ],
+            "ColorHex": "#555555"
+        },
+        {
+            "Id": "engine_r",
+            "Shape": "Box",
+            "Position": [
+                0.5,
+                0,
+                -0.8
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.2,
+                0.2,
+                0.6
+            ],
+            "ColorHex": "#555555"
+        },
+        {
+            "Id": "sensor_dish",
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0.3,
+                0.8
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                0.4,
+                0.4,
+                0.4
+            ],
+            "ColorHex": "#ffcc00"
+        }
+    ]
+}

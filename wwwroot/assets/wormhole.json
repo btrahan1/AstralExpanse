@@ -1,0 +1,69 @@
+{
+    "Name": "Wormhole",
+    "Type": "Wormhole",
+    "Parts": [
+        {
+            "Id": "core",
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                10,
+                10,
+                10
+            ],
+            "ColorHex": "#000000",
+            "Material": "Glow"
+        },
+        {
+            "Id": "ring1",
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                45,
+                0,
+                0
+            ],
+            "Scale": [
+                20,
+                20,
+                2
+            ],
+            "ColorHex": "#7700ff",
+            "Material": "Glass"
+        },
+        {
+            "Id": "ring2",
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                45,
+                0
+            ],
+            "Scale": [
+                22,
+                2,
+                22
+            ],
+            "ColorHex": "#00ffff",
+            "Material": "Glass"
+        }
+    ]
+}

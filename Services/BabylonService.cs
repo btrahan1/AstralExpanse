@@ -25,6 +25,11 @@ public class BabylonService
         await _jsRuntime.InvokeVoidAsync("AstralEngine.init", canvasId, _objRef);
     }
 
+    public async Task ClearScene()
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.clearScene");
+    }
+
 
     public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null, string? id = null)
     {
@@ -102,6 +107,16 @@ public class BabylonService
     public async Task DestroyModel(string id, string effect = "collapse")
     {
         await _jsRuntime.InvokeVoidAsync("AstralEngine.destroyModel", id, effect);
+    }
+
+    public async Task FireLaser(string sourceId, string targetId, string colorHex = "#ff3300")
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.fireLaser", sourceId, targetId, colorHex);
+    }
+
+    public async Task UpdateCombatUI(string id, float health, float maxHealth)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.updateCombatUI", id, health, maxHealth);
     }
 
     public event Action? OnEscapePressed;

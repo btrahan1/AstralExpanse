@@ -20,22 +20,42 @@ public class ConstructionService
         _missionService = missionService;
     }
 
-    public async Task BuildNewShipFromStation(GameUnitType unitType, string builderStationId)
+    public async Task BuildNewShipFromStation(GameUnitType unitType, string builderStationId, string? targetId = null)
     {
         int cost = GetUnitCost(unitType);
 
         if (_gameState.TryBuildShip(unitType.ToString(), cost))
         {
             var id = unitType == GameUnitType.SubStationUnit ? 
-                $"Station_Sub_{Guid.NewGuid().ToString()[..8]}" : 
-                $"Ship_{unitType}_{Guid.NewGuid().ToString()[..8]}";
+                $"Station_Sub_{Guid.NewGuid().ToString().Split('-').Last()}" : 
+                $"Ship_{unitType}_{Guid.NewGuid().ToString().Split('-').Last()}";
+            
+            var sector = _gameState.GetSectorByStation(builderStationId) ?? _gameState.CurrentSector;
             
             var asset = GetUnitAsset(unitType);
             
-            var stationPos = _gameState.StationPositions.TryGetValue(builderStationId, out var sPos) ? sPos : new float[] { 0, 0, 0 };
-            var spawnPos = unitType == GameUnitType.SubStationUnit ? 
-                new float[] { stationPos[0], stationPos[1], stationPos[2] + 120 } : 
-                new float[] { stationPos[0], stationPos[1], stationPos[2] };
+            var stationPos = sector.StationPositions.TryGetValue(builderStationId, out var sPos) ? sPos : new float[] { 0, 0, 0 };
+            float[] spawnPos;
+
+            if (builderStationId == "Ark_Colonization_Station")
+            {
+                // Randomly pick one of the 4 "feet" (docking hubs)
+                var rndSpawn = new Random();
+                int bay = rndSpawn.Next(4);
+                spawnPos = bay switch
+                {
+                    0 => new float[] { stationPos[0], stationPos[1] - 10, stationPos[2] + 45 },
+                    1 => new float[] { stationPos[0], stationPos[1] - 10, stationPos[2] - 45 },
+                    2 => new float[] { stationPos[0] + 45, stationPos[1] - 10, stationPos[2] },
+                    _ => new float[] { stationPos[0] - 45, stationPos[1] - 10, stationPos[2] }
+                };
+            }
+            else
+            {
+                spawnPos = unitType == GameUnitType.SubStationUnit ? 
+                    new float[] { stationPos[0], stationPos[1], stationPos[2] + 120 } : 
+                    new float[] { stationPos[0], stationPos[1], stationPos[2] + 15 }; // Default offset for substations
+            }
 
             var json = await _http.GetStringAsync($"assets/{asset}");
             
@@ -48,31 +68,47 @@ public class ConstructionService
                 Type = unitType, 
                 State = ShipState.Building,
                 Position = spawnPos,
+                SectorId = sector.Id,
                 ParentStationId = builderStationId,
                 ConstructionProgress = 0,
-                ConstructionTarget = buildDuration
+                ConstructionTarget = buildDuration,
+                TargetWormholeId = targetId,
+                Health = GetMaxHealth(unitType),
+                MaxHealth = GetMaxHealth(unitType),
+                Armor = GetUnitArmor(unitType),
+                Firepower = GetUnitFirepower(unitType)
             };
             
-            _gameState.ActiveMissions[id] = mission;
+            sector.ActiveMissions[id] = mission;
             
             if (unitType != GameUnitType.SubStationUnit)
             {
-                _gameState.RegisterShip(id);
+                if (!sector.Fleet.Contains(id)) sector.Fleet.Add(id);
             }
             else
             {
-                _gameState.RegisterStation(id, spawnPos);
+                if (!sector.Stations.Contains(id))
+                {
+                    sector.Stations.Add(id);
+                    sector.StationPositions[id] = spawnPos;
+                }
             }
 
-            await _babylon.LoadModel(json, spawnPos, id: id);
+            if (sector.Id == _gameState.CurrentSectorId)
+            {
+                await _babylon.LoadModel(json, spawnPos, id: id);
+            }
             
-            _ = HandleConstructionSequence(id, buildDuration);
+            _ = HandleConstructionSequence(id, buildDuration, sector.Id);
         }
     }
 
-    public async Task HandleConstructionSequence(string id, float durationSeconds)
+    public async Task HandleConstructionSequence(string id, float durationSeconds, string sectorId)
     {
-        if (_gameState.ActiveMissions.TryGetValue(id, out var mission))
+        var sector = _gameState.Sectors.FirstOrDefault(s => s.Id == sectorId);
+        if (sector == null) return;
+
+        if (sector.ActiveMissions.TryGetValue(id, out var mission))
         {
             float elapsed = (mission.ConstructionProgress / 100.0f) * durationSeconds;
             int steps = 20; 
@@ -95,6 +131,14 @@ public class ConstructionService
                 {
                     _ = _missionService.StartProbeSearch(id);
                 }
+                else if (mission.Type == GameUnitType.WormholeScoutUnit)
+                {
+                    _ = _missionService.StartWormholeScout(id);
+                }
+                else if (mission.Type == GameUnitType.StellarGatekeeperUnit && !string.IsNullOrEmpty(mission.TargetWormholeId))
+                {
+                    _ = _missionService.StartStellarGatekeeperMission(id, mission.TargetWormholeId);
+                }
             }
         }
     }
@@ -107,7 +151,31 @@ public class ConstructionService
         GameUnitType.SubStationUnit => 500,
         GameUnitType.ProbeUnit => 200, // Assuming this is the probe pack cost
         GameUnitType.ColonyShipUnit => 1000,
+        GameUnitType.WormholeScoutUnit => 400,
+        GameUnitType.StellarGatekeeperUnit => 1500,
         _ => 100
+    };
+
+    private float GetMaxHealth(GameUnitType unitType) => unitType switch {
+        GameUnitType.ColonyShipUnit => 500,
+        GameUnitType.FighterUnit => 150,
+        GameUnitType.SubStationUnit => 1000,
+        _ => 100
+    };
+
+    private float GetUnitArmor(GameUnitType unitType) => unitType switch {
+        GameUnitType.FighterUnit => 10,
+        GameUnitType.ColonyShipUnit => 20,
+        GameUnitType.SubStationUnit => 50,
+        _ => 0
+    };
+
+    private float GetUnitFirepower(GameUnitType unitType) => unitType switch {
+        GameUnitType.FighterUnit => 15,
+        GameUnitType.MinerUnit => 2, // Defensive only
+        GameUnitType.TugboatUnit => 5,
+        GameUnitType.StellarGatekeeperUnit => 25,
+        _ => 1
     };
 
     private string GetUnitAsset(GameUnitType unitType) => unitType switch {
@@ -118,6 +186,8 @@ public class ConstructionService
         GameUnitType.SubStationUnit => "substation.json",
         GameUnitType.ProbeUnit => "miner.json", 
         GameUnitType.ColonyShipUnit => "colony_ship.json",
+        GameUnitType.WormholeScoutUnit => "wormhole_scout.json",
+        GameUnitType.StellarGatekeeperUnit => "stellar_gatekeeper.json",
         _ => "miner.json"
     };
 }

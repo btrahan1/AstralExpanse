@@ -1,0 +1,87 @@
+{
+    "Name": "Alien Station",
+    "Type": "Station",
+    "Parts": [
+        {
+            "Id": "hub",
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                10,
+                10,
+                10
+            ],
+            "ColorHex": "#1a3300"
+        },
+        {
+            "Id": "ring",
+            "Shape": "Sphere",
+            "Position": [
+                0,
+                0,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                25,
+                2,
+                25
+            ],
+            "ColorHex": "#336600",
+            "Material": "Glass"
+        },
+        {
+            "Id": "spire_u",
+            "Shape": "Box",
+            "Position": [
+                0,
+                15,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                20,
+                1
+            ],
+            "ColorHex": "#222222"
+        },
+        {
+            "Id": "spire_d",
+            "Shape": "Box",
+            "Position": [
+                0,
+                -15,
+                0
+            ],
+            "Rotation": [
+                0,
+                0,
+                0
+            ],
+            "Scale": [
+                1,
+                20,
+                1
+            ],
+            "ColorHex": "#222222"
+        }
+    ]
+}

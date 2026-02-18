@@ -151,7 +151,7 @@ public class ColonyService
         var farmhouse = planet.Buildings.Find(b => b.Type == "FarmHouse");
         if (farmhouse == null) return false;
 
-        _gameState.Ore -= 300;
+        _gameState.AddOre(-300);
         
         var botId = $"Bot_{planetId}_{System.Guid.NewGuid().ToString()[..4]}";
         var botPos = new float[] { farmhouse.Position[0] + 5, farmhouse.Position[1], farmhouse.Position[2] + 5 };
@@ -181,7 +181,7 @@ public class ColonyService
         var planet = _gameState.Planets.Find(p => p.Id == planetId);
         if (planet == null || planet.Rover != null) return false;
 
-        _gameState.Ore -= 1200;
+        _gameState.AddOre(-1200);
         
         var roverId = $"Rover_{planetId}_{System.Guid.NewGuid().ToString()[..4]}";
         var spawnPos = new float[] { 0, 0, 0 }; // Default center
@@ -219,7 +219,7 @@ public class ColonyService
         var monolith = planet.Monoliths.Find(m => m.Id == monolithId);
         if (monolith == null) return false;
 
-        _gameState.Ore -= 300;
+        _gameState.AddOre(-300);
         
         var minerId = $"SurfaceMiner_{planetId}_{System.Guid.NewGuid().ToString()[..4]}";
         var hubPos = new float[] { planet.Position[0], planet.Position[1] + 26.5f, planet.Position[2] };

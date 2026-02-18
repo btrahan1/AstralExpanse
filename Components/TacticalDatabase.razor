@@ -1,0 +1,250 @@
+@using AstralExpanse.Services
+
+<div class="db-overlay" @onclick="Close">
+    <div class="db-window" @onclick:stopPropagation="true">
+        <div class="db-header">
+            <div class="header-glitch">TACTICAL DATABASE [v4.2.1]</div>
+            <button class="close-btn" @onclick="Close">&times;</button>
+        </div>
+
+        <div class="db-tabs">
+            <button class="tab-btn @(ActiveTab == "Overview" ? "active" : "")" @onclick='() => SetTab("Overview")'>EXPEDITION OVERVIEW</button>
+            <button class="tab-btn @(ActiveTab == "Fleet" ? "active" : "")" @onclick='() => SetTab("Fleet")'>FLEET REGISTRY</button>
+            <button class="tab-btn @(ActiveTab == "Structures" ? "active" : "")" @onclick='() => SetTab("Structures")'>FACILITIES</button>
+            <button class="tab-btn @(ActiveTab == "DeepSpace" ? "active" : "")" @onclick='() => SetTab("DeepSpace")'>DEEP SPACE PROTOCOL</button>
+            <button class="tab-btn @(ActiveTab == "Intelligence" ? "active" : "")" @onclick='() => SetTab("Intelligence")'>INTELLIGENCE</button>
+        </div>
+
+        <div class="db-content">
+            @if (ActiveTab == "Overview")
+            {
+                <div class="content-pane fadeIn">
+                    <h2>THE ARK INITIATIVE</h2>
+                    <p>Welcome, Commander. You are tasked with the survival and expansion of the Ark Initiative. Your primary objective is to colonize the habitable planets of the Stellar Expanse and reach a total sustainable population of <strong>5,000 citizens</strong>.</p>
+                    
+                    <div class="info-box">
+                        <h3>ASCENSION PROTOCOL</h3>
+                        <ul>
+                            <li><strong>Step 1:</strong> Secure local Ore resources using Mining Units.</li>
+                            <li><strong>Step 2:</strong> Scan for Aether Monoliths to extract rare shards for advanced construction.</li>
+                            <li><strong>Step 3:</strong> Establish Planet Colonies to begin population growth.</li>
+                            <li><strong>Step 4:</strong> Deploy Wormhole Scouts to reach new star systems.</li>
+                        </ul>
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "Fleet")
+            {
+                <div class="content-pane fadeIn">
+                    <h2>FLEET REGISTRY</h2>
+                    <div class="grid">
+                        <div class="item">
+                            <h4>Venture-Class Miner</h4>
+                            <p>Robust resource extraction unit. Self-manages cargo and returns to nearest station automatically.</p>
+                        </div>
+                        <div class="item">
+                            <h4>Recon Scout</h4>
+                            <p>High-speed explorer. Primarily used for mapping asteroids and locating planetary bodies.</p>
+                        </div>
+                        <div class="item">
+                            <h4>Wormhole Scout</h4>
+                            <p>Equipped with advanced spatial sensors to detect stable wormholes in the outer rim.</p>
+                        </div>
+                        <div class="item">
+                            <h4>Colony Ship</h4>
+                            <p>Essential for planetary expansion. Decouples into a surface hub upon landing.</p>
+                        </div>
+                        <div class="item">
+                            <h4>Stellar Gatekeeper</h4>
+                            <p>Massive vessel designed for inter-sector travel. Consumes significant resources but enables system transitions.</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "Structures")
+            {
+                <div class="content-pane fadeIn">
+                    <h2>FACILITIES & INFRASTRUCTURE</h2>
+                    <div class="info-box">
+                        <h3>Ark Station</h3>
+                        <p>The core command center. Provides basic construction capabilities and acts as the prime resource hub.</p>
+                    </div>
+                    <div class="info-box">
+                        <h3>Modular Substation</h3>
+                        <p>Expanding your reach into deeper space. Deploy Interceptors from here to secure mining zones.</p>
+                    </div>
+                    <div class="info-box">
+                        <h3>Planetary Colonies</h3>
+                        <p>The heart of your civilization. Sustaining life on planetary surfaces is the only path to victory.</p>
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "DeepSpace")
+            {
+                <div class="content-pane fadeIn">
+                    <h2>DEEP SPACE PROTOCOL</h2>
+                    <p>Exploration carries immense risks. Wormholes shift frequently; once a scout identifies a stable passage, the <strong>Stellar Gatekeeper</strong> must be deployed to secure the link.</p>
+                    <div class="warning-box">
+                        <strong>THREAT DETECTION:</strong> Resource-rich sectors often draw the attention of hostile entities. Monitor the <strong>Threat Level</strong> indicator before authorizing jumps.
+                    </div>
+                </div>
+            }
+            else if (ActiveTab == "Intelligence")
+            {
+                <div class="content-pane fadeIn Intelligence">
+                    <h2>INTELLIGENCE REPORT</h2>
+                    <h3>SUBJECT: THE VOID REMNANT</h3>
+                    <p>An ancient, semi-organic robotic civilization. They view the Stellar Expanse as their graveyard and will aggressively defend any site they deem sacred.</p>
+                    <ul>
+                        <li><strong>Behavior:</strong> Autonomous patrolling. Will engage any vessel within proximity.</li>
+                        <li><strong>Stations:</strong> Monolithic "Spire" stations act as coordination hubs. Neutralizing these significantly reduces local threat.</li>
+                    </ul>
+                </div>
+            }
+        </div>
+
+        <div class="db-footer">
+            <span>COMMAND_ROOT: ACCESS_GRANTED</span>
+            <div class="scanline"></div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    private string ActiveTab = "Overview";
+
+    private void SetTab(string tab) => ActiveTab = tab;
+    private async Task Close() => await OnClose.InvokeAsync();
+}
+
+<style>
+    .db-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 5, 10, 0.85);
+        backdrop-filter: blur(8px);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .db-window {
+        width: 900px;
+        height: 700px;
+        background: linear-gradient(180deg, rgba(13, 27, 42, 0.95) 0%, rgba(10, 15, 25, 0.98) 100%);
+        border: 2px solid #00d4ff;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 0 40px rgba(0, 212, 255, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .db-header {
+        padding: 1rem 2rem;
+        background: rgba(0, 212, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+    }
+
+    .header-glitch {
+        font-family: 'Orbitron', sans-serif;
+        color: #00d4ff;
+        letter-spacing: 2px;
+        font-weight: bold;
+    }
+
+    .close-btn {
+        background: transparent;
+        border: none;
+        color: #ff4444;
+        font-size: 2rem;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .db-tabs {
+        display: flex;
+        background: rgba(0,0,0,0.3);
+        padding: 0 1rem;
+    }
+
+    .tab-btn {
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: rgba(0, 212, 255, 0.6);
+        padding: 1rem;
+        font-size: 0.8rem;
+        font-family: 'Orbitron', sans-serif;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .tab-btn:hover { color: #00d4ff; background: rgba(0, 212, 255, 0.05); }
+    .tab-btn.active { color: #00d4ff; border-bottom-color: #00d4ff; background: rgba(0, 212, 255, 0.1); }
+
+    .db-content {
+        flex: 1;
+        padding: 2rem;
+        overflow-y: auto;
+        color: #e0e0e0;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .content-pane h2 {
+        color: #00d4ff;
+        border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .info-box {
+        background: rgba(0, 212, 255, 0.05);
+        border-left: 4px solid #00d4ff;
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+
+    .warning-box {
+        background: rgba(255, 100, 0, 0.1);
+        border: 1px solid #ff6400;
+        padding: 1rem;
+        margin-top: 2rem;
+        color: #ff6400;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    .item h4 { color: #ffcc00; margin-bottom: 0.5rem; }
+
+    .db-footer {
+        padding: 0.5rem 1rem;
+        font-size: 0.7rem;
+        color: rgba(0, 212, 255, 0.4);
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .fadeIn { animation: fadeInAnim 0.4s ease-out; }
+    @@keyframes fadeInAnim { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .scanline {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 2px;
+        background: rgba(0, 212, 255, 0.1);
+        animation: scanlineAnim 8s linear infinite;
+        pointer-events: none;
+    }
+    @@keyframes scanlineAnim { from { top: 0; } to { top: 100%; } }
+</style>

@@ -14,6 +14,8 @@ window.AstralEngine = {
     rovers: {}, // id -> { root, velocity, speed, facingAngle, input, isActive, ui }
     monoliths: {}, // id -> { root, isDiscovered }
     surfaceMiners: {}, // id -> { root, targetMonolithPos, colonyPos, state, cargo }
+    npcShips: {}, // id -> { root, state, targetPos, waitTime }
+    combatUI: {}, // id -> { mesh, bar, texture }
     inputMap: {},
 
     spawnRover: function (id, jsonData, position) {
@@ -342,6 +344,7 @@ window.AstralEngine = {
         this.rovers = {};
         this.monoliths = {};
         this.surfaceMiners = {};
+        this.npcShips = {};
         this.constructionUI = {};
         this.inputMap = {};
 
@@ -381,6 +384,7 @@ window.AstralEngine = {
             const dt = this.engine.getDeltaTime() / 1000;
             this.updateRovers(dt);
             this.updateSurfaceMiners(dt);
+            this.updateNPCs(dt);
             this.scene.render();
         });
 
@@ -397,6 +401,36 @@ window.AstralEngine = {
         });
 
         console.log("AstralEngine Initialized 🚀");
+    },
+
+    clearScene: function () {
+        if (!this.scene) return;
+
+        // Dispose all root meshes
+        this.scene.getNodes().forEach(node => {
+            if (node.metadata && node.metadata.isRoot) {
+                node.dispose();
+            }
+        });
+
+        // Clear registries
+        this.rovers = {};
+        this.monoliths = {};
+        this.surfaceMiners = {};
+        this.npcShips = {};
+
+        // Clear construction UI
+        for (let id in this.constructionUI) {
+            this.removeConstructionProgress(id);
+        }
+        this.constructionUI = {};
+
+        for (let id in this.combatUI) {
+            this.removeCombatUI(id);
+        }
+        this.combatUI = {};
+
+        console.log("AstralEngine Scene Cleared 🧹");
     },
 
     loadProceduralModel: function (jsonData, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0], id = null) {
@@ -421,22 +455,23 @@ window.AstralEngine = {
         modelData.Parts.forEach(part => {
             let mesh;
             const options = this.getMeshOptions(part);
+            const partId = finalId + "_" + part.Id;
 
             switch (part.Shape) {
                 case "Box":
-                    mesh = BABYLON.MeshBuilder.CreateBox(part.Id, options, this.scene);
+                    mesh = BABYLON.MeshBuilder.CreateBox(partId, options, this.scene);
                     break;
                 case "Sphere":
-                    mesh = BABYLON.MeshBuilder.CreateSphere(part.Id, options, this.scene);
+                    mesh = BABYLON.MeshBuilder.CreateSphere(partId, options, this.scene);
                     break;
                 case "Cylinder":
-                    mesh = BABYLON.MeshBuilder.CreateCylinder(part.Id, options, this.scene);
+                    mesh = BABYLON.MeshBuilder.CreateCylinder(partId, options, this.scene);
                     break;
                 case "Torus":
-                    mesh = BABYLON.MeshBuilder.CreateTorus(part.Id, options, this.scene);
+                    mesh = BABYLON.MeshBuilder.CreateTorus(partId, options, this.scene);
                     break;
                 case "Cone":
-                    mesh = BABYLON.MeshBuilder.CreateCylinder(part.Id, { ...options, diameterTop: 0 }, this.scene);
+                    mesh = BABYLON.MeshBuilder.CreateCylinder(partId, { ...options, diameterTop: 0 }, this.scene);
                     break;
             }
 
@@ -455,7 +490,7 @@ window.AstralEngine = {
                 );
                 mesh.scaling = new BABYLON.Vector3(pScale[0], pScale[1], pScale[2]);
 
-                const material = new BABYLON.StandardMaterial("mat_" + part.Id, this.scene);
+                const material = new BABYLON.StandardMaterial("mat_" + partId, this.scene);
                 material.diffuseColor = BABYLON.Color3.FromHexString(part.ColorHex);
 
                 if (part.Material === "Glass") {
@@ -473,7 +508,8 @@ window.AstralEngine = {
         if (modelData.Timeline && modelData.Timeline.length > 0) {
             modelData.Timeline.forEach(entry => {
                 if (entry.Action === "Rotate" && entry.Duration > 0) {
-                    const actualTarget = root.getChildMeshes().find(m => m.name === entry.TargetId);
+                    const targetPartId = finalId + "_" + entry.TargetId;
+                    const actualTarget = root.getChildMeshes().find(m => m.id === targetPartId || m.name === targetPartId);
                     if (actualTarget) {
                         const frameCount = 60 * entry.Duration;
                         const animation = new BABYLON.Animation("rotAnim", "rotation", 60, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
@@ -493,6 +529,14 @@ window.AstralEngine = {
                     }
                 }
             });
+        }
+
+        // Immediate Registration for Always-Moving Doctrine
+        if (modelData.Type === "NPC" || modelData.Type === "Ship") {
+            const isFighter = modelData.unitType === "FighterUnit" || modelData.Type === "NPC";
+            if (isFighter) {
+                this.npcShips[finalId] = { root: root, state: "Patrolling", waitTime: 0, type: modelData.Type, spawnPos: root.position.clone() };
+            }
         }
 
         return finalId;
@@ -535,7 +579,10 @@ window.AstralEngine = {
 
         if (dist < 0.1) {
             node.position = target;
-            if (this.dotNetRef) this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id);
+            if (this.dotNetRef) {
+                // Break synchronous recursion loop by yielding to event loop
+                setTimeout(() => this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id), 1);
+            }
             return;
         }
 
@@ -543,7 +590,9 @@ window.AstralEngine = {
 
         if (isNaN(frameCount) || frameCount <= 0) {
             node.position = target;
-            if (this.dotNetRef) this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id);
+            if (this.dotNetRef) {
+                setTimeout(() => this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id), 1);
+            }
             return;
         }
 
@@ -579,6 +628,49 @@ window.AstralEngine = {
         });
     },
 
+    fireLaser: function (sourceId, targetId, colorHex = "#ff3300") {
+        const source = this.scene.getNodeById(sourceId);
+        const target = this.scene.getNodeById(targetId);
+        if (!source || !target) return;
+
+        // Sync Target for Kamikaze Pursuit override
+        if (this.npcShips[sourceId]) {
+            this.npcShips[sourceId].targetId = targetId;
+            this.npcShips[sourceId].state = "Attacking";
+        }
+
+        const start = source.absolutePosition.clone();
+        const end = target.absolutePosition.clone();
+        const dist = BABYLON.Vector3.Distance(start, end);
+
+        const laser = BABYLON.MeshBuilder.CreateCylinder("laser_" + Date.now(), {
+            height: dist,
+            diameter: 0.5,
+            tessellation: 4
+        }, this.scene);
+
+        laser.position = BABYLON.Vector3.Center(start, end);
+        laser.lookAt(end);
+        laser.rotation.x += Math.PI / 2;
+
+        const mat = new BABYLON.StandardMaterial("laserMat", this.scene);
+        mat.emissiveColor = BABYLON.Color3.FromHexString(colorHex);
+        mat.disableLighting = true;
+        laser.material = mat;
+
+        // Visual fade out
+        let life = 0.2; // seconds
+        const anim = setInterval(() => {
+            life -= 0.05;
+            if (life <= 0) {
+                laser.dispose();
+                clearInterval(anim);
+            } else {
+                mat.alpha = life / 0.2;
+            }
+        }, 50);
+    },
+
     attachToParent: function (childId, parentId, offset = [0, 0, 5]) {
         const child = this.scene.getNodeById(childId);
         const parent = this.scene.getNodeById(parentId);
@@ -607,7 +699,7 @@ window.AstralEngine = {
     getModelPosition: function (id) {
         const node = this.scene.getNodeById(id);
         if (!node) return null;
-        return [node.position.x, node.position.y, node.position.z];
+        return [node.absolutePosition.x, node.absolutePosition.y, node.absolutePosition.z];
     },
 
     getRadarData: function () {
@@ -719,8 +811,89 @@ window.AstralEngine = {
             BABYLON.Animation.CreateAndStartAnimation("collapse", node, "scaling", 60, 30, node.scaling.clone(), BABYLON.Vector3.Zero(), BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT, null, () => {
                 node.dispose();
             });
+        } else if (effect === "explode") {
+            const exp = BABYLON.MeshBuilder.CreateSphere("exp_" + id, { diameter: 10 }, this.scene);
+            exp.position = node.position.clone();
+            const mat = new BABYLON.StandardMaterial("expMat", this.scene);
+            mat.emissiveColor = new BABYLON.Color3(1, 0.5, 0);
+            exp.material = mat;
+
+            node.dispose();
+            this.removeCombatUI(id);
+
+            let s = 1.0;
+            const anim = setInterval(() => {
+                s += 0.2;
+                exp.scaling = new BABYLON.Vector3(s, s, s);
+                mat.alpha -= 0.05;
+                if (mat.alpha <= 0) {
+                    exp.dispose();
+                    clearInterval(anim);
+                }
+            }, 30);
         } else {
             node.dispose();
+            this.removeCombatUI(id);
+        }
+
+        // Remove from NPC tracking immediately
+        if (this.npcShips[id]) {
+            delete this.npcShips[id];
+        }
+    },
+
+    updateCombatUI: function (id, health, maxHealth) {
+        if (!this.scene) return;
+
+        // Backup: If health is 0, ensure destruction triggers even if DestroyModel was missed
+        if (health <= 0) {
+            this.destroyModel(id, "explode");
+            return;
+        }
+
+        const node = this.scene.getNodeById(id);
+        if (!node) return;
+
+        let ui = this.combatUI[id];
+        if (!ui) {
+            const plane = BABYLON.MeshBuilder.CreatePlane("combat_ui_" + id, { width: 15, height: 3 }, this.scene);
+            plane.position = new BABYLON.Vector3(0, 15, 0); // Correct relative offset
+            plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL;
+            plane.parent = node;
+            plane.isPickable = false;
+
+            const texture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 256, 64);
+            const container = new BABYLON.GUI.Rectangle();
+            container.width = "100%";
+            container.height = "100%";
+            container.background = "rgba(0, 0, 0, 0.4)";
+            container.thickness = 2;
+            container.color = "white";
+            texture.addControl(container);
+
+            const bar = new BABYLON.GUI.Rectangle();
+            bar.width = "100%";
+            bar.height = "100%";
+            bar.background = "#ff4444";
+            bar.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGN_LEFT;
+            bar.thickness = 0;
+            container.addControl(bar);
+
+            ui = { mesh: plane, bar: bar, texture: texture };
+            this.combatUI[id] = ui;
+        }
+
+        const pct = Math.max(0, health / maxHealth);
+        ui.bar.width = (pct * 100) + "%";
+        ui.bar.background = pct < 0.3 ? "#ff0000" : (pct < 0.6 ? "#ffaa00" : "#00ff00");
+    },
+
+    removeCombatUI: function (id) {
+        const ui = this.combatUI[id];
+        if (ui) {
+            ui.texture.dispose();
+            ui.mesh.dispose();
+            delete this.combatUI[id];
         }
     },
 
@@ -915,5 +1088,99 @@ window.AstralEngine = {
         this.camera.upperRadiusLimit = 1000;
         this.camera.lowerBetaLimit = 0.01;
         this.camera.upperBetaLimit = Math.PI - 0.01;
+    },
+
+    updateNPCs: function (dt) {
+        // Throttled scan for new NPCs or Fighters (every 2 seconds)
+        this._scanTimer = (this._scanTimer || 0) + dt;
+        if (this._scanTimer > 2.0) {
+            this._scanTimer = 0;
+            this.scene.getNodes().forEach(node => {
+                if (node.metadata && (node.metadata.type === "NPC" || node.metadata.type === "Ship") && !this.npcShips[node.id]) {
+                    const isFighter = node.metadata.unitType === "FighterUnit" || node.metadata.type === "NPC";
+                    if (isFighter) {
+                        this.npcShips[node.id] = { root: node, state: "Patrolling", waitTime: 0, type: node.metadata.type };
+                    }
+                }
+            });
+        }
+
+        for (let id in this.npcShips) {
+            const ship = this.npcShips[id];
+            if (!ship.root || ship.root.isDisposed()) {
+                delete this.npcShips[id];
+                continue;
+            }
+
+            if (ship.state === "Patrolling") {
+                if (!ship.targetPos || BABYLON.Vector3.Distance(ship.root.position, ship.targetPos) < 15) {
+                    if (ship.waitTime > 0) {
+                        ship.waitTime -= dt;
+                    } else {
+                        // LOCAL PATROL: Pick waypoint relative to CURRENT position
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = 300 + Math.random() * 500;
+                        const offset = new BABYLON.Vector3(Math.cos(angle) * dist, (Math.random() - 0.5) * 100, Math.sin(angle) * dist);
+                        ship.targetPos = ship.root.position.add(offset);
+                        ship.waitTime = 1 + Math.random() * 3; // Faster re-trigger
+                    }
+                } else {
+                    // Move towards target
+                    const diff = ship.targetPos.subtract(ship.root.position);
+                    const moveStep = diff.normalize().scale(25 * dt); // Increased NPC patrol speed (25 units/sec)
+                    ship.root.position.addInPlace(moveStep);
+
+                    // Look toward target
+                    const lookAt = BABYLON.Quaternion.FromEulerAngles(0, Math.atan2(diff.x, diff.z), 0);
+                    ship.root.rotationQuaternion = BABYLON.Quaternion.Slerp(ship.root.rotationQuaternion || BABYLON.Quaternion.Identity(), lookAt, 2 * dt);
+                }
+            } else if (ship.state === "Attacking") {
+                const targetNode = this.scene.getNodeById(ship.targetId);
+                // KAMIKAZE: Aggressively close distance
+                if (targetNode && targetNode.isEnabled() && !targetNode.isDisposed()) {
+                    // Cancel any running animations to allow manual pursuit
+                    this.scene.stopAnimation(ship.root);
+
+                    const diff = targetNode.absolutePosition.subtract(ship.root.position);
+                    const dist = diff.length();
+
+                    if (dist > 1500) {
+                        ship.state = "Patrolling";
+                        ship.targetId = null;
+                        ship.targetPos = null;
+                        return;
+                    }
+
+                    // Look at target with high precision
+                    const lookAt = BABYLON.Quaternion.FromEulerAngles(0, Math.atan2(diff.x, diff.z), 0);
+                    ship.root.rotationQuaternion = BABYLON.Quaternion.Slerp(ship.root.rotationQuaternion || BABYLON.Quaternion.Identity(), lookAt, 8 * dt);
+
+                    // Aggressive Dive: Close to 100 units at high speed
+                    if (dist > 100) {
+                        ship.root.position.addInPlace(diff.normalize().scale(45 * dt)); // 45 units/sec Intercept speed
+                    } else {
+                        // Point blank: slow down but keep orbiting/passing
+                        ship.root.position.addInPlace(diff.normalize().scale(10 * dt));
+                    }
+                } else {
+                    ship.state = "Patrolling";
+                    ship.targetId = null;
+                    ship.targetPos = null;
+                }
+            }
+
+            // Proximity Engagement (Client side visual/state hint)
+            if (ship.state === "Patrolling") {
+                this.scene.getNodes().forEach(node => {
+                    if (node.metadata && node.metadata.type === "Ship" && node.isEnabled()) {
+                        const dist = BABYLON.Vector3.Distance(ship.root.position, node.absolutePosition);
+                        if (dist < 700) { // Matched to C# Firing Range
+                            ship.state = "Attacking";
+                            ship.targetId = node.id;
+                        }
+                    }
+                });
+            }
+        }
     }
 };

@@ -16,5 +16,6 @@ builder.Services.AddScoped<ConstructionService>();
 builder.Services.AddScoped<ColonyService>();
 builder.Services.AddScoped<FarmingService>();
 builder.Services.AddScoped<RoverService>();
+builder.Services.AddScoped<CombatService>();
 
 await builder.Build().RunAsync();

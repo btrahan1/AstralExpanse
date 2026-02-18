@@ -121,9 +121,9 @@ public class FarmingService
     {
         switch (fieldType)
         {
-            case "WheatField": _gameState.Wheat += 100; break;
-            case "PotatoField": _gameState.Potato += 100; break;
-            case "CornField": _gameState.Corn += 100; break;
+            case "WheatField": _gameState.AddWheat(100); break;
+            case "PotatoField": _gameState.AddPotato(100); break;
+            case "CornField": _gameState.AddCorn(100); break;
         }
     }
 
