@@ -10,13 +10,27 @@
         <div class="subtitle">Command the Ark. Settle the Stars.</div>
         
         <div class="button-group">
-            <button class="menu-btn primary" @onclick="() => OnNewGame.InvokeAsync()">
+            <button class="menu-btn primary" @onclick="HandleNewGameClicked">
                 NEW COLONIZATION
             </button>
             <button class="menu-btn @(_canContinue ? "secondary" : "disabled")" disabled="@(!_canContinue)" @onclick="() => OnContinueGame.InvokeAsync()">
                 @(_canContinue ? "CONTINUE MISSION" : "NO SAVED DATA")
             </button>
         </div>
+
+        @if (_showNewGameWarning)
+        {
+            <div class="warning-dialog">
+                <div class="warning-box">
+                    <h3>WARNING: DATA OVERWRITE</h3>
+                    <p>An existing colony save has been detected. Starting a new colonization will permanently delete your previous progress.</p>
+                    <div class="warning-actions">
+                        <button class="menu-btn danger" @onclick="() => OnNewGame.InvokeAsync()">OVERWRITE SAVE</button>
+                        <button class="menu-btn secondary" @onclick="() => _showNewGameWarning = false">CANCEL</button>
+                    </div>
+                </div>
+            </div>
+        }
         
         <div class="version">v0.3.0 - Persistence Alpha</div>
     </div>
@@ -27,10 +41,23 @@
     [Parameter] public EventCallback OnContinueGame { get; set; }
     
     private bool _canContinue = false;
+    private bool _showNewGameWarning = false;
 
     protected override async Task OnInitializedAsync()
     {
         _canContinue = await Persistence.SaveExists();
+    }
+
+    private void HandleNewGameClicked()
+    {
+        if (_canContinue)
+        {
+            _showNewGameWarning = true;
+        }
+        else
+        {
+            OnNewGame.InvokeAsync();
+        }
     }
 }
 
@@ -137,6 +164,48 @@
         cursor: not-allowed;
         color: #666;
         border-color: #333;
+    }
+
+    .warning-dialog {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+    }
+
+    .warning-box {
+        background: #0d1522;
+        border: 2px solid #ff4444;
+        padding: 2.5rem;
+        border-radius: 8px;
+        max-width: 450px;
+        box-shadow: 0 0 50px rgba(255, 68, 68, 0.2);
+    }
+
+    .warning-box h3 {
+        color: #ff4444;
+        margin-top: 0;
+        letter-spacing: 2px;
+    }
+
+    .warning-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 2rem;
+    }
+
+    .menu-btn.danger {
+        border-color: #ff4444;
+        color: #ff4444;
+    }
+
+    .menu-btn.danger:hover {
+        background: rgba(255, 68, 68, 0.1);
+        transform: scale(1.05);
     }
 
     .version {

@@ -433,13 +433,17 @@ window.AstralEngine = {
         console.log("AstralEngine Scene Cleared 🧹");
     },
 
-    loadProceduralModel: function (jsonData, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0], id = null) {
+    loadProceduralModel: function (jsonData, position = [0, 0, 0], scale = 1, rotation = [0, 0, 0], id = null, additionalMetadata = null) {
         if (!this.scene) return;
         const modelData = typeof jsonData === "string" ? JSON.parse(jsonData) : jsonData;
         const finalId = id || (modelData.Name + "_" + Date.now() + "_" + Math.floor(Math.random() * 1000));
         const root = new BABYLON.TransformNode(finalId, this.scene);
         root.id = finalId;
         root.metadata = { isRoot: true, type: modelData.Type, name: modelData.Name };
+
+        if (additionalMetadata) {
+            root.metadata = { ...root.metadata, ...additionalMetadata };
+        }
 
         const pos = position || [0, 0, 0];
         const rot = rotation || [0, 0, 0];
@@ -626,6 +630,14 @@ window.AstralEngine = {
                 this.dotNetRef.invokeMethodAsync("NotifyMoveComplete", id);
             }
         });
+    },
+
+    updateModelMetadata: function (id, key, value) {
+        const node = this.scene.getNodeById(id);
+        if (node) {
+            node.metadata = node.metadata || {};
+            node.metadata[key] = value;
+        }
     },
 
     fireLaser: function (sourceId, targetId, colorHex = "#ff3300") {
@@ -1112,22 +1124,37 @@ window.AstralEngine = {
                 continue;
             }
 
+            // C# State Integration: Check if ship is in a managed state (Returning/Repairing/Building)
+            const metaState = ship.root.metadata ? ship.root.metadata.state : null;
+            const isManaged = metaState === "ReturningToStation" || metaState === "Repairing" || metaState === "Building" || metaState === "Managed";
+
+            if (isManaged) {
+                ship.state = "Managed"; // Halt autonomous logic
+                ship.targetId = null;
+                ship.targetPos = null;
+                continue;
+            } else if (ship.state === "Managed") {
+                // EXPLICIT RECOVERY: If C# released the ship (e.g. after repair), resume patrolling
+                ship.state = "Patrolling";
+            }
+
             if (ship.state === "Patrolling") {
-                if (!ship.targetPos || BABYLON.Vector3.Distance(ship.root.position, ship.targetPos) < 15) {
-                    if (ship.waitTime > 0) {
-                        ship.waitTime -= dt;
-                    } else {
-                        // LOCAL PATROL: Pick waypoint relative to CURRENT position
-                        const angle = Math.random() * Math.PI * 2;
-                        const dist = 300 + Math.random() * 500;
-                        const offset = new BABYLON.Vector3(Math.cos(angle) * dist, (Math.random() - 0.5) * 100, Math.sin(angle) * dist);
-                        ship.targetPos = ship.root.position.add(offset);
-                        ship.waitTime = 1 + Math.random() * 3; // Faster re-trigger
-                    }
+                // Ensure no C# animations (like MoveModel) are fighting us
+                if (this.scene.getAnimationRatio() > 0 && ship.root.animations && ship.root.animations.length > 0) {
+                    this.scene.stopAnimation(ship.root);
+                }
+
+                if (!ship.targetPos || BABYLON.Vector3.Distance(ship.root.position, ship.targetPos) < 20) {
+                    // INSTANT PATROL: Pick waypoint relative to STAR/STATION (0,0,0) immediately
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 200 + Math.random() * 300; // Keep within 200-500 radius
+                    // Target is absolute position from center (0,0,0)
+                    ship.targetPos = new BABYLON.Vector3(Math.cos(angle) * dist, (Math.random() - 0.5) * 50, Math.sin(angle) * dist);
+                    ship.waitTime = 0; // continuous movement
                 } else {
                     // Move towards target
                     const diff = ship.targetPos.subtract(ship.root.position);
-                    const moveStep = diff.normalize().scale(25 * dt); // Increased NPC patrol speed (25 units/sec)
+                    const moveStep = diff.normalize().scale(30 * dt); // Dynamic Patrol Speed
                     ship.root.position.addInPlace(moveStep);
 
                     // Look toward target
@@ -1148,7 +1175,7 @@ window.AstralEngine = {
                         ship.state = "Patrolling";
                         ship.targetId = null;
                         ship.targetPos = null;
-                        return;
+                        continue; // Fix: Change return to continue to avoid freezing entire loop
                     }
 
                     // Look at target with high precision
@@ -1173,10 +1200,17 @@ window.AstralEngine = {
             if (ship.state === "Patrolling") {
                 this.scene.getNodes().forEach(node => {
                     if (node.metadata && node.metadata.type === "Ship" && node.isEnabled()) {
-                        const dist = BABYLON.Vector3.Distance(ship.root.position, node.absolutePosition);
-                        if (dist < 700) { // Matched to C# Firing Range
-                            ship.state = "Attacking";
-                            ship.targetId = node.id;
+                        // FACTION CHECK: Only attack DIFFERENT factions (and ignore same faction)
+                        const myFaction = ship.root.metadata.faction || "Player"; // Default to Player
+                        const targetFaction = node.metadata.faction || "Player"; // Default to Player
+
+                        // If factions are different, engage
+                        if (myFaction !== targetFaction) {
+                            const dist = BABYLON.Vector3.Distance(ship.root.position, node.absolutePosition);
+                            if (dist < 700) { // Matched to C# Firing Range
+                                ship.state = "Attacking";
+                                ship.targetId = node.id;
+                            }
                         }
                     }
                 });

@@ -31,9 +31,9 @@ public class BabylonService
     }
 
 
-    public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null, string? id = null)
+    public async Task<string> LoadModel(string jsonContent, float[]? pos = null, float scale = 1.0f, float[]? rot = null, string? id = null, Dictionary<string, object>? metadata = null)
     {
-        return await _jsRuntime.InvokeAsync<string>("AstralEngine.loadProceduralModel", jsonContent, pos ?? new float[] { 0, 0, 0 }, scale, rot ?? new float[] { 0, 0, 0 }, id);
+        return await _jsRuntime.InvokeAsync<string>("AstralEngine.loadProceduralModel", jsonContent, pos ?? new float[] { 0, 0, 0 }, scale, rot ?? new float[] { 0, 0, 0 }, id, metadata);
     }
 
     public async Task LoadModels(List<ModelLoadData> models)
@@ -44,6 +44,11 @@ public class BabylonService
     public async Task MoveModel(string id, float[] targetPos, float duration)
     {
         await _jsRuntime.InvokeVoidAsync("AstralEngine.moveModel", id, targetPos, duration);
+    }
+
+    public async Task UpdateModelMetadata(string id, string key, string value)
+    {
+        await _jsRuntime.InvokeVoidAsync("AstralEngine.updateModelMetadata", id, key, value);
     }
 
     public async Task UpdateRoverAutodrive(string id, bool active, float[]? target = null)

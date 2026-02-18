@@ -348,8 +348,8 @@
                 foreach (var npc in GameState.NPCShips.Values.ToList())
                 {
                     var npcJson = await Http.GetStringAsync("assets/alien_fighter.json");
-                    await JSRuntime.InvokeVoidAsync("AstralEngine.loadProceduralModel", npcJson, npc.Position, 3.0, new float[] { 0, 0, 0 }, npc.Id);
-                    await JSRuntime.InvokeVoidAsync("eval", $"AstralEngine.scene.getNodeById('{npc.Id}').metadata = {{ isRoot: true, type: 'NPC', name: 'Alien Fighter' }}");
+                    var meta = new Dictionary<string, object> { { "unitType", "FighterUnit" }, { "type", "NPC" }, { "faction", "Alien_Rogue" } };
+                    await BabylonService.LoadModel(npcJson, npc.Position, 3.0f, null, npc.Id, meta);
                 }
                 foreach (var mission in GameState.ActiveMissions.Values.ToList())
                 {
@@ -357,8 +357,10 @@
                     
                     var asset = GetUnitAsset(mission.Type);
                     var json = await Http.GetStringAsync($"assets/{asset}");
-                    await BabylonService.LoadModel(json, mission.Position, id: mission.ShipId);
-                    // Movement will be triggered by RestartMissions() after full scene load
+                    
+                    var meta = new Dictionary<string, object> { { "unitType", mission.Type.ToString() }, { "state", mission.State.ToString() }, { "faction", "Player" } };
+                    await BabylonService.LoadModel(json, mission.Position, id: mission.ShipId, metadata: meta);
+                    // Movement will be triggered by RestartMissions() or JS autonomous logic
                 }
             }
             
@@ -501,7 +503,7 @@
         {
             if (m.Type == GameUnitType.ScoutUnit) { m.State = ShipState.Searching; var wp = GetRandomWaypoint(600, 1000); m.CurrentTarget = wp; await BabylonService.MoveModel(shipId, wp, 40.0f); }
             else if (m.Type == GameUnitType.WormholeScoutUnit) { await Missions.StartWormholeScout(shipId); }
-            else if (m.Type == GameUnitType.FighterUnit) { m.State = ShipState.Patrolling; var wp = GetRandomWaypoint(150, 300); m.CurrentTarget = wp; await BabylonService.MoveModel(shipId, wp, 30.0f); }
+            else if (m.Type == GameUnitType.FighterUnit) { m.State = ShipState.Patrolling; var wp = GetRandomWaypoint(150, 300); m.CurrentTarget = wp; }
             else if (m.Type == GameUnitType.ProbeUnit) { await Missions.StartProbeSearch(shipId); }
             else if (m.Type == GameUnitType.ColonyShipUnit)
             {

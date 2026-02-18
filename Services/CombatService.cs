@@ -77,7 +77,11 @@ public class CombatService
                 // Player Ships Engagement
                 foreach (var mission in sector.ActiveMissions.Values.ToList())
                 {
-                    if (mission.Type != GameUnitType.FighterUnit || mission.Health <= 0 || mission.State == ShipState.Destroyed || mission.State == ShipState.Building) continue;
+                    if (mission.Type != GameUnitType.FighterUnit || 
+                        mission.Health <= 0 || 
+                        mission.State == ShipState.Destroyed || 
+                        mission.State == ShipState.Building ||
+                        mission.State == ShipState.Repairing) continue;
 
                     var target = FindNearestEnemy(mission, sector);
                     if (target != null)
@@ -110,10 +114,27 @@ public class CombatService
                     }
                 }
 
+                // Automated Repairs: If sector is clear, send damaged ships home
+                if (!sector.NPCShips.Any())
+                {
+                    foreach (var mission in sector.ActiveMissions.Values.ToList())
+                    {
+                        if (mission.Health < mission.MaxHealth && 
+                            mission.State != ShipState.Repairing && 
+                            mission.State != ShipState.ReturningToStation &&
+                            mission.State != ShipState.Building &&
+                            mission.State != ShipState.Destroyed)
+                        {
+                            Console.WriteLine($"[CombatService] Sending damaged ship {mission.ShipId} to base for repairs.");
+                            _ = _missionService.ReturnToStation(mission.ShipId);
+                        }
+                    }
+                }
+
                 // NPC Respawn Logic (If it's a hostile sector and empty)
                 if (sector.ThreatLevel > 0.5f && !sector.NPCShips.Any())
                 {
-                    if ((DateTime.Now - _lastRespawnTime).TotalSeconds > 1500)
+                    if ((DateTime.Now - _lastRespawnTime).TotalSeconds > 60)
                     {
                         _lastRespawnTime = DateTime.Now;
                         Console.WriteLine($"[CombatService] Respawning NPC wave in {sector.Name}...");
@@ -281,8 +302,8 @@ public class CombatService
         if (sector.Id == _gameState.CurrentSectorId)
         {
             try {
-                await _babylon.FireLaser(npcId, target.ShipId, "#ff3300"); 
-                await _babylon.UpdateCombatUI(target.ShipId, target.Health, target.MaxHealth);
+                _ = _babylon.FireLaser(npcId, target.ShipId, "#ff3300"); 
+                _ = _babylon.UpdateCombatUI(target.ShipId, target.Health, target.MaxHealth);
             } catch { }
         }
 
@@ -291,6 +312,16 @@ public class CombatService
         float firepower = npc.Firepower > 0 ? npc.Firepower : 8; 
         float damage = firepower;
         target.Health -= damage * (1.0f - target.Armor / 100f);
+
+        // Defensive Retreat for non-combat ships
+        if (target.Type != GameUnitType.FighterUnit && 
+            target.State != ShipState.ReturningToStation && 
+            target.State != ShipState.Repairing &&
+            target.State != ShipState.Destroyed)
+        {
+            Console.WriteLine($"[Combat] Miner/Non-combat {target.ShipId} UNDER ATTACK! Retracting to station.");
+            _ = _missionService.ReturnToStation(target.ShipId);
+        }
 
         if (target.Health <= 0)
         {

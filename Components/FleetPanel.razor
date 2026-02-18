@@ -4,7 +4,55 @@
 @if (Visible)
 {
     <div class="fleet-panel">
-    <h3>Fleet Command</h3>
+    <h3>Empire Management</h3>
+    
+    <div class="section-group">
+        <h4>Sector Navigator</h4>
+        <div class="sector-selector">
+            @foreach (var sector in GameState.Sectors)
+            {
+                var isCurrent = sector.Id == GameState.CurrentSectorId;
+                <button class="sector-tab @(isCurrent ? "active" : "")" @onclick="() => ChangeSector(sector.Id)">
+                    <span class="sector-tag">S-ID: @(sector.Id.Split('_').Last())</span>
+                    <span class="sector-name">@sector.Name</span>
+                    @if (isCurrent) { <div class="active-indicator"></div> }
+                </button>
+            }
+        </div>
+    </div>
+
+    <h3>Command Center</h3>
+
+    <div class="section-group">
+        <h4>Station Command</h4>
+        <div class="station-list">
+            @foreach (var sId in GameState.Stations)
+            {
+                var isSelected = sId == SelectedStationId;
+                var displayName = sId == "Ark_Colonization_Station" ? "ARK STATION" : "SUBSTATION " + sId.Split('_')[^1];
+                var isMoving = GameState.ActiveMissions.Values.Any(m => m.AsteroidId == sId && m.Type == GameUnitType.TugboatUnit && m.State == ShipState.Towing);
+                
+                <div class="station-item @(isSelected ? "selected" : "")" @onclick="() => OnSelectStation.InvokeAsync(sId)">
+                    <div class="ship-info">
+                        <span class="ship-name">@displayName</span>
+                        <span class="ship-status @(isMoving ? "transit" : "scouting")">@(isMoving ? "In Transit" : "Operational")</span>
+                    </div>
+                    @if (!isMoving)
+                    {
+                        <div class="ship-actions">
+                            <button class="btn-action build-btn" @onclick:stopPropagation="true" @onclick="() => OnOpenShipyard.InvokeAsync(sId)">BUILD</button>
+                            @if (sId != "Ark_Colonization_Station")
+                            {
+                                <button class="btn-action tow-btn" @onclick:stopPropagation="true" @onclick="() => OnInitiateStationTow.InvokeAsync(sId)">TOW</button>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <h3>Tactical Fleet</h3>
     <div class="ship-list">
         @if (!GameState.Stations.Any())
         {
@@ -47,22 +95,30 @@
                                                 var displayStatus = status;
                                                 if (status == "MovingToAsteroid" && mission.AsteroidId.StartsWith("Planet_")) displayStatus = "MovingToPlanet";
                                             }
-                                            <span class="ship-status @displayStatus.ToLower()">@displayStatus @(stopRequested ? "(Stopping)" : "")</span>
+                                            <div class="status-row">
+                                                <span class="ship-status @displayStatus.ToLower()">
+                                                    @if (mission.Health <= 0) { <span class="destroyed-label">DESTROYED</span> }
+                                                    else { @displayStatus @(stopRequested && mission.Type != GameUnitType.FighterUnit ? "(Stopping)" : "") }
+                                                </span>
+                                                @if (mission.State == ShipState.Mining || mission.State == ShipState.Unloading)
+                                                {
+                                                    <div class="cargo-container mini">
+                                                        <div class="cargo-bar" style="width: @(mission.Cargo)%"></div>
+                                                        <span class="cargo-text">@(mission.Cargo)%</span>
+                                                    </div>
+                                                }
+                                                else if (mission.State == ShipState.Building)
+                                                {
+                                                    <div class="cargo-container construction mini">
+                                                        <div class="cargo-bar construction-bar" style="width: @(mission.ConstructionProgress)%"></div>
+                                                        <span class="cargo-text construction-text">@(((int)mission.ConstructionProgress))%</span>
+                                                    </div>
+                                                }
+                                                <div class="health-bar-container mini">
+                                                    <div class="health-bar-fill" style="width: @(mission.Health * 100 / mission.MaxHealth)%; background: @(mission.Health < 30 ? "#ff4444" : "#44ff44")"></div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        @if (mission.State == ShipState.Mining || mission.State == ShipState.Unloading)
-                                        {
-                                            <div class="cargo-container">
-                                                <div class="cargo-bar" style="width: @(mission.Cargo)%"></div>
-                                                <span class="cargo-text">@(mission.Cargo)%</span>
-                                            </div>
-                                        }
-                                        else if (mission.State == ShipState.Building)
-                                        {
-                                            <div class="cargo-container construction">
-                                                <div class="cargo-bar construction-bar" style="width: @(mission.ConstructionProgress)%"></div>
-                                                <span class="cargo-text construction-text">@(((int)mission.ConstructionProgress))%</span>
-                                            </div>
-                                        }
                                         <div class="ship-actions">
                                             @if (mission.State == ShipState.Idle)
                                             {
@@ -77,6 +133,10 @@
                                                 else if (mission.Type == GameUnitType.ColonyShipUnit && GameState.Planets.Any(p => p.IsDiscovered && !p.IsColonized))
                                                 {
                                                     <button class="btn-action colony-btn" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Colonize Planet</button>
+                                                }
+                                                else if (mission.Type == GameUnitType.StellarGatekeeperUnit && GameState.Wormholes.Any(w => w.IsDiscovered))
+                                                {
+                                                    <button class="btn-action warp-btn" @onclick:stopPropagation="true" @onclick="() => StartMission(shipId)">Jump Sector</button>
                                                 }
                                             }
                                             else if (mission.State != ShipState.Idle && !stopRequested)
@@ -117,19 +177,46 @@
             }
         </div>
     }
+    
+    @if (GameState.Wormholes.Any(w => w.IsDiscovered))
+    {
+        <h3>Anomalies & Wormholes</h3>
+        <div class="planet-list">
+            @foreach (var wormhole in GameState.Wormholes.Where(w => w.IsDiscovered))
+            {
+                <div class="planet-item wormhole-item" @onclick="() => SelectPlanet(wormhole.Id)">
+                    <div class="ship-info">
+                        <span class="ship-name">Wormhole @(wormhole.Id.Split('_')[^1])</span>
+                        <span class="ship-status searching">STABLE LINK</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
     </div>
 }
 
 @code {
     [Parameter] public bool Visible { get; set; } = true;
     [Parameter] public string? SelectedShipId { get; set; }
+    [Parameter] public string? SelectedStationId { get; set; }
     [Parameter] public EventCallback<string> OnSelectShip { get; set; }
+    [Parameter] public EventCallback<string> OnSelectStation { get; set; }
     [Parameter] public EventCallback<string> OnVisitPlanet { get; set; }
     [Parameter] public EventCallback<string> OnStopMining { get; set; }
     [Parameter] public EventCallback<string> OnStartMission { get; set; }
     [Parameter] public EventCallback<string> OnInitiateTow { get; set; }
+    [Parameter] public EventCallback<string> OnOpenShipyard { get; set; }
+    [Parameter] public EventCallback<string> OnInitiateStationTow { get; set; }
 
     private HashSet<string> _collapsedStations = new HashSet<string>();
+
+    private async Task ChangeSector(string id)
+    {
+        if (GameState.CurrentSectorId == id) return;
+        GameState.CurrentSectorId = id;
+        GameState.Notify();
+    }
 
     private void ToggleStation(string id)
     {
@@ -165,38 +252,98 @@
 }
 
 <style>
+    .sector-selector {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+
+    .sector-tab {
+        background: rgba(68, 136, 255, 0.05);
+        border: 1px solid rgba(68, 136, 255, 0.2);
+        border-radius: 6px;
+        padding: 8px 12px;
+        color: white;
+        cursor: pointer;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.2s;
+    }
+
+    .sector-tab:hover {
+        background: rgba(68, 136, 255, 0.15);
+        border-color: rgba(68, 136, 255, 0.5);
+    }
+
+    .sector-tab.active {
+        background: rgba(68, 136, 255, 0.2);
+        border-color: #4488ff;
+        box-shadow: inset 0 0 10px rgba(68, 136, 255, 0.2);
+    }
+
+    .sector-tag {
+        font-size: 0.55rem;
+        color: #4488ff;
+        font-family: monospace;
+        letter-spacing: 1px;
+    }
+
+    .sector-name {
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-top: 2px;
+    }
+
+    .active-indicator {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: #00d4ff;
+        box-shadow: 2px 0 10px rgba(0, 212, 255, 0.5);
+    }
+
     .fleet-panel {
         position: fixed;
         top: 20px;
         right: 20px;
-        width: 280px;
-        max-height: 400px;
-        background: rgba(16, 24, 48, 0.85);
-        backdrop-filter: blur(15px);
-        border: 1px solid rgba(68, 136, 255, 0.3);
+        width: 300px;
+        max-height: 85vh;
+        background: rgba(16, 24, 48, 0.92);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(68, 136, 255, 0.4);
         border-radius: 12px;
-        padding: 15px;
+        padding: 18px;
         color: white;
         z-index: 20;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        overflow-y: auto;
     }
 
     h3 {
-        margin: 0 0 15px 0;
-        font-weight: 300;
-        letter-spacing: 2px;
+        margin: 20px 0 12px 0;
+        font-weight: 600;
+        letter-spacing: 1.5px;
         text-transform: uppercase;
-        font-size: 0.9rem;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 10px;
-        color: #4488ff;
+        font-size: 0.75rem;
+        border-bottom: 1px solid rgba(68, 136, 255, 0.2);
+        padding-bottom: 8px;
+        color: #00d4ff;
+    }
+
+    h3:first-of-type {
+        margin-top: 0;
     }
 
     .ship-list {
-        overflow-y: auto;
-        flex-grow: 1;
+        flex-shrink: 0;
         padding-right: 5px;
     }
 
@@ -325,6 +472,7 @@
     .ship-status.building { color: #ffcc00; font-weight: bold; }
     .ship-status.searching { color: #00ffff; font-style: italic; }
     .ship-status.colonizing { color: #ffffff; text-shadow: 0 0 5px #fff; }
+    .ship-status.repairing { color: #00ff88; font-weight: bold; text-shadow: 0 0 5px rgba(0, 255, 136, 0.3); }
 
     .cargo-container {
         flex-grow: 1;
@@ -342,6 +490,40 @@
         background: linear-gradient(90deg, #00ffcc, #00ccff);
         box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
         transition: width 0.3s ease-out;
+    }
+
+    .cargo-container.mini {
+        margin: 0 0 0 10px;
+        flex-grow: 1;
+        max-width: 60px;
+    }
+
+    .status-row {
+        display: flex;
+        align-items: center;
+        margin-top: 2px;
+        gap: 8px;
+    }
+
+    .health-bar-container.mini {
+        width: 40px;
+        height: 6px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 3px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .health-bar-fill {
+        height: 100%;
+        transition: width 0.3s ease-out, background 0.3s ease;
+    }
+
+    .destroyed-label {
+        color: #ff4444;
+        font-weight: bold;
+        text-shadow: 0 0 10px rgba(255,68,68,0.5);
+        font-size: 0.65rem;
     }
 
     .cargo-text {
@@ -424,9 +606,10 @@
     }
 
     .planet-list {
-        margin-top: 5px;
-        max-height: 150px;
-        overflow-y: auto;
+        margin-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 
     .planet-item {
@@ -451,8 +634,75 @@
         text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
     }
 
-    .btn-action.visit-btn:hover {
-        background: rgba(0, 255, 204, 0.3);
-        box-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
+    .station-status.transit {
+        color: #ffcc00;
+        font-style: italic;
+    }
+
+    .station-item {
+        background: rgba(0, 255, 204, 0.05);
+        border: 1px solid rgba(0, 255, 204, 0.2);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+    }
+
+    .station-item:hover {
+        background: rgba(0, 255, 204, 0.1);
+    }
+
+    .station-item.selected {
+        border-color: #00ffcc;
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+    }
+
+    .btn-action.build-btn {
+        background: #00ffcc;
+        color: #101830;
+        font-weight: bold;
+    }
+
+    .btn-action.tow-btn {
+        background: #ffcc00;
+        color: #101830;
+        font-weight: bold;
+    }
+
+    .section-group {
+        margin-bottom: 20px;
+    }
+
+    .section-group h4 {
+        font-size: 0.65rem;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+
+    .wormhole-item {
+        border-color: rgba(119, 0, 255, 0.4);
+        background: rgba(119, 0, 255, 0.05);
+    }
+
+    .wormhole-item:hover {
+        background: rgba(119, 0, 255, 0.15);
+        border-color: #7700ff;
+    }
+
+    .btn-action.warp-btn {
+        border-color: rgba(119, 0, 255, 0.6);
+        color: #ffffff;
+        background: rgba(119, 0, 255, 0.2);
+        box-shadow: 0 0 8px rgba(119, 0, 255, 0.4);
+    }
+
+    .btn-action.warp-btn:hover {
+        background: rgba(119, 0, 255, 0.4);
     }
 </style>

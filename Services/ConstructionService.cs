@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -11,6 +12,7 @@ public class ConstructionService
     private readonly BabylonService _babylon;
     private readonly HttpClient _http;
     private readonly MissionService _missionService;
+    private readonly HashSet<string> _activeSequences = new();
 
     public ConstructionService(GameStateService gameState, BabylonService babylon, HttpClient http, MissionService missionService)
     {
@@ -96,7 +98,8 @@ public class ConstructionService
 
             if (sector.Id == _gameState.CurrentSectorId)
             {
-                await _babylon.LoadModel(json, spawnPos, id: id);
+                var meta = new Dictionary<string, object> { { "unitType", unitType.ToString() }, { "state", "Building" }, { "faction", "Player" } };
+                await _babylon.LoadModel(json, spawnPos, id: id, metadata: meta);
             }
             
             _ = HandleConstructionSequence(id, buildDuration, sector.Id);
@@ -105,41 +108,50 @@ public class ConstructionService
 
     public async Task HandleConstructionSequence(string id, float durationSeconds, string sectorId)
     {
-        var sector = _gameState.Sectors.FirstOrDefault(s => s.Id == sectorId);
-        if (sector == null) return;
+        if (!_activeSequences.Add(id)) return;
+        try {
+            var sector = _gameState.Sectors.FirstOrDefault(s => s.Id == sectorId);
+            if (sector == null) return;
 
-        if (sector.ActiveMissions.TryGetValue(id, out var mission))
-        {
-            float elapsed = (mission.ConstructionProgress / 100.0f) * durationSeconds;
-            int steps = 20; 
-            float interval = durationSeconds / steps;
-
-            while (mission.ConstructionProgress < 100 && mission.State == ShipState.Building)
+            if (sector.ActiveMissions.TryGetValue(id, out var mission))
             {
-                await Task.Delay((int)(interval * 1000));
-                elapsed += interval;
-                mission.ConstructionProgress = Math.Min(100, (elapsed / durationSeconds) * 100);
-                _gameState.Notify();
-            }
+                float elapsed = (mission.ConstructionProgress / 100.0f) * durationSeconds;
+                int steps = 20; 
+                float interval = durationSeconds / steps;
 
-            if (mission.ConstructionProgress >= 100)
-            {
-                mission.State = ShipState.Idle;
-                mission.ConstructionProgress = 100;
+                while (mission.ConstructionProgress < 100 && mission.State == ShipState.Building)
+                {
+                    await Task.Delay((int)(interval * 1000));
+                    elapsed += interval;
+                    mission.ConstructionProgress = Math.Min(100, (elapsed / durationSeconds) * 100);
+                    _gameState.Notify();
+                }
 
-                if (mission.Type == GameUnitType.ProbeUnit)
+                if (mission.ConstructionProgress >= 100)
                 {
-                    _ = _missionService.StartProbeSearch(id);
-                }
-                else if (mission.Type == GameUnitType.WormholeScoutUnit)
-                {
-                    _ = _missionService.StartWormholeScout(id);
-                }
-                else if (mission.Type == GameUnitType.StellarGatekeeperUnit && !string.IsNullOrEmpty(mission.TargetWormholeId))
-                {
-                    _ = _missionService.StartStellarGatekeeperMission(id, mission.TargetWormholeId);
+                    mission.State = ShipState.Idle;
+                    mission.ConstructionProgress = 100;
+                    
+                    // Clear "Building" state metadata so JS can take over if needed (or move to Idle)
+                    if (sector.Id == _gameState.CurrentSectorId) 
+                        _ = _babylon.UpdateModelMetadata(id, "state", "Idle");
+
+                    if (mission.Type == GameUnitType.ProbeUnit)
+                    {
+                        _ = _missionService.StartProbeSearch(id);
+                    }
+                    else if (mission.Type == GameUnitType.WormholeScoutUnit)
+                    {
+                        _ = _missionService.StartWormholeScout(id);
+                    }
+                    else if (mission.Type == GameUnitType.StellarGatekeeperUnit && !string.IsNullOrEmpty(mission.TargetWormholeId))
+                    {
+                        _ = _missionService.StartStellarGatekeeperMission(id, mission.TargetWormholeId);
+                    }
                 }
             }
+        } finally {
+            _activeSequences.Remove(id);
         }
     }
 
@@ -149,7 +161,7 @@ public class ConstructionService
         GameUnitType.FighterUnit => 250,
         GameUnitType.TugboatUnit => 300,
         GameUnitType.SubStationUnit => 500,
-        GameUnitType.ProbeUnit => 200, // Assuming this is the probe pack cost
+        GameUnitType.ProbeUnit => 200, 
         GameUnitType.ColonyShipUnit => 1000,
         GameUnitType.WormholeScoutUnit => 400,
         GameUnitType.StellarGatekeeperUnit => 1500,
@@ -172,7 +184,7 @@ public class ConstructionService
 
     private float GetUnitFirepower(GameUnitType unitType) => unitType switch {
         GameUnitType.FighterUnit => 15,
-        GameUnitType.MinerUnit => 2, // Defensive only
+        GameUnitType.MinerUnit => 2, 
         GameUnitType.TugboatUnit => 5,
         GameUnitType.StellarGatekeeperUnit => 25,
         _ => 1

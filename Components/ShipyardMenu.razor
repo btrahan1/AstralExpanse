@@ -77,6 +77,26 @@
             </div>
             <button class="btn-build @(GameState.Ore < 1000 ? "disabled" : "")">BUILD</button>
         </div>
+
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.WormholeScoutUnit, 400)">
+            <div class="ship-icon wormhole-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Wormhole Scout</span>
+                <span class="ship-desc">Advanced probe for locating stable wormholes.</span>
+                <span class="ship-cost">Cost: 400 Ore</span>
+            </div>
+            <button class="btn-build @(GameState.Ore < 400 ? "disabled" : "")">LAUNCH</button>
+        </div>
+
+        <div class="ship-card" @onclick="() => BuildShip(GameUnitType.StellarGatekeeperUnit, 1500)">
+            <div class="ship-icon gatekeeper-icon"></div>
+            <div class="ship-details">
+                <span class="ship-title">Stellar Gatekeeper</span>
+                <span class="ship-desc">Massive jump-ship for inter-sector transitions.</span>
+                <span class="ship-cost">Cost: 1500 Ore</span>
+            </div>
+            <button class="btn-build @(GameState.Ore < 1500 ? "disabled" : "")">BUILD</button>
+        </div>
     </div>
 </div>
 
@@ -194,6 +214,8 @@
     .substation-icon { background: linear-gradient(135deg, #C0C0C0 0%, #4488ff 100%); }
     .probe-icon { background: linear-gradient(135deg, #00FFFF 0%, #4488ff 100%); }
     .colony-icon { background: linear-gradient(135deg, #FFFFFF 0%, #4488ff 100%); }
+    .wormhole-icon { background: linear-gradient(135deg, #7700ff 0%, #00ffff 100%); }
+    .gatekeeper-icon { background: linear-gradient(135deg, #ffd700 0%, #ff4500 100%); }
 
     .ship-details {
         flex: 1;

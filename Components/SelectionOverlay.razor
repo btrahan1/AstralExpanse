@@ -13,7 +13,14 @@
         }
         else if (!string.IsNullOrEmpty(SelectedAsteroidId))
         {
-            @if (SelectedAsteroidId.StartsWith("Monolith"))
+            @if (SelectedAsteroidId.StartsWith("Wormhole"))
+            {
+                <div class="monolith-selection">
+                    <span>Ancient Wormhole Discovered</span>
+                    <button class="mine-btn" @onclick="() => OnMineMonolith.InvokeAsync(SelectedAsteroidId)">EXPLORE SYSTEM</button>
+                </div>
+            }
+            else if (SelectedAsteroidId.StartsWith("Monolith"))
             {
                 <div class="monolith-selection">
                     <span>Aether Monolith Detected</span>

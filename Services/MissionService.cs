@@ -12,6 +12,7 @@ public class MissionService
     private readonly GameStateService _gameState;
     private readonly BabylonService _babylon;
     private readonly HttpClient _http;
+    private readonly HashSet<string> _activeSequences = new();
     
     public MissionService(GameStateService gameState, BabylonService babylon, HttpClient http)
     {
@@ -56,7 +57,6 @@ public class MissionService
         if (mission == null || sector == null) return;
 
         mission.State = ShipState.Searching;
-        // Scouts search further out than probes
         if (sector.Id == _gameState.CurrentSectorId)
         {
             var rnd = new Random();
@@ -75,7 +75,7 @@ public class MissionService
         var planet = sector.Planets.Find(p => p.Id == planetId);
         if (planet == null) return;
 
-        mission.State = ShipState.MovingToAsteroid; // Using this as "Moving To Target"
+        mission.State = ShipState.MovingToAsteroid; 
         mission.AsteroidId = planetId;
         mission.AsteroidPosition = planet.Position;
         mission.CurrentTarget = planet.Position;
@@ -83,7 +83,7 @@ public class MissionService
         if (sector.Id == _gameState.CurrentSectorId)
         {
             var shipPos = await _babylon.GetModelPosition(shipId) ?? mission.Position;
-            await _babylon.MoveModel(shipId, planet.Position, GetMoveDuration(shipPos, planet.Position, 15.0f)); // Colony ships are slow
+            await _babylon.MoveModel(shipId, planet.Position, GetMoveDuration(shipPos, planet.Position, 15.0f));
         }
     }
 
@@ -95,7 +95,7 @@ public class MissionService
         var wormhole = sector.Wormholes.Find(w => w.Id == wormholeId);
         if (wormhole == null) return;
 
-        mission.State = ShipState.MovingToAsteroid; // Generic "moving to target"
+        mission.State = ShipState.MovingToAsteroid;
         mission.AsteroidId = wormholeId;
         mission.AsteroidPosition = wormhole.Position;
         mission.CurrentTarget = wormhole.Position;
@@ -109,155 +109,253 @@ public class MissionService
 
     public async Task HandleMoveComplete(string id)
     {
-        var mission = _gameState.FindMission(id, out var sector);
-        if (mission == null || sector == null) return;
+        _ = Task.Run(async () => {
+            var mission = _gameState.FindMission(id, out var sector);
+            if (mission == null || sector == null) return;
 
-        if (mission.State == ShipState.MovingToAsteroid && mission.Type == GameUnitType.MinerUnit)
-        {
-            mission.State = ShipState.Mining;
-            _ = HandleMiningSequence(id, mission.AsteroidId);
-        }
-        else if (mission.State == ShipState.ReturningToStation)
-        {
-            mission.State = ShipState.Unloading;
-            _ = HandleUnloadingSequence(id);
-        }
-        else if (mission.State == ShipState.MovingToAsteroid && mission.Type == GameUnitType.TugboatUnit)
-        {
-            mission.State = ShipState.Towing;
-            if (sector.Id == _gameState.CurrentSectorId)
+            if (mission.State == ShipState.MovingToAsteroid && (mission.Type == GameUnitType.MinerUnit || mission.Type == GameUnitType.ColonyShipUnit || mission.Type == GameUnitType.StellarGatekeeperUnit))
             {
-                await _babylon.AttachToParent(mission.AsteroidId, id);
-                await _babylon.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(mission.Position, mission.AsteroidPosition, 10.0f));
+                if (mission.Type == GameUnitType.MinerUnit)
+                {
+                    mission.State = ShipState.Mining;
+                    _ = HandleMiningSequence(id, mission.AsteroidId);
+                }
+                else if (mission.Type == GameUnitType.ColonyShipUnit)
+                {
+                    mission.State = ShipState.Colonizing;
+                    _ = HandleColonizationSequence(id, mission.AsteroidId);
+                }
+                else if (mission.Type == GameUnitType.StellarGatekeeperUnit)
+                {
+                    if (sector.Id == _gameState.CurrentSectorId)
+                    {
+                        await JumpToNewSector(mission.AsteroidId);
+                        sector.ActiveMissions.Remove(id);
+                        sector.Fleet.Remove(id);
+                        await _babylon.DestroyModel(id, "collapse");
+                    }
+                    else
+                    {
+                        _ = Task.Run(async () => {
+                            await Task.Delay(2000);
+                            await JumpToNewSector(mission.AsteroidId);
+                        });
+                        sector.ActiveMissions.Remove(id);
+                        sector.Fleet.Remove(id);
+                    }
+                }
             }
-        }
-        else if (mission.State == ShipState.Towing)
-        {
-            mission.State = ShipState.Idle;
-            if (sector.Id == _gameState.CurrentSectorId)
+            else if (mission.State == ShipState.ReturningToStation)
             {
-                await _babylon.DetachFromParent(mission.AsteroidId, mission.AsteroidPosition);
+                if (mission.Health < mission.MaxHealth)
+                {
+                    mission.State = ShipState.Repairing;
+                    if (sector.Id == _gameState.CurrentSectorId) _ = _babylon.UpdateModelMetadata(id, "state", "Repairing");
+                    _ = HandleRepairSequence(id);
+                }
+                else
+                {
+                    mission.State = ShipState.Unloading;
+                    if (sector.Id == _gameState.CurrentSectorId) _ = _babylon.UpdateModelMetadata(id, "state", "Unloading");
+                    _ = HandleUnloadingSequence(id);
+                }
             }
-        }
-        else if (mission.State == ShipState.Searching)
-        {
-            if (mission.Type == GameUnitType.ProbeUnit)
+            else if (mission.State == ShipState.MovingToAsteroid && mission.Type == GameUnitType.TugboatUnit)
             {
-                await DiscoverPlanet(id);
+                mission.State = ShipState.Towing;
+                if (sector.Id == _gameState.CurrentSectorId)
+                {
+                    await _babylon.AttachToParent(mission.AsteroidId, id);
+                    await _babylon.MoveModel(id, mission.AsteroidPosition, GetMoveDuration(mission.Position, mission.AsteroidPosition, 10.0f));
+                }
+                else
+                {
+                     var duration = GetMoveDuration(mission.Position, mission.AsteroidPosition, 10.0f);
+                     _ = Task.Run(async () => {
+                        await Task.Delay((int)(duration * 1000));
+                        mission.Position = mission.AsteroidPosition;
+                        await HandleMoveComplete(id);
+                     });
+                }
             }
-            else if (mission.Type == GameUnitType.WormholeScoutUnit)
-            {
-                await DiscoverWormhole(id);
-            }
-            if (mission.StopRequested || mission.Type == GameUnitType.FighterUnit)
-            {
-                mission.State = ShipState.Patrolling;
-                mission.StopRequested = false;
-                _ = Task.Run(async () => { await Task.Delay(200); await HandleMoveComplete(id); });
-            }
-            else
+            else if (mission.State == ShipState.Towing)
             {
                 mission.State = ShipState.Idle;
+                if (sector.Id == _gameState.CurrentSectorId)
+                {
+                    await _babylon.DetachFromParent(mission.AsteroidId, mission.AsteroidPosition);
+                }
             }
-        }
-        else if (mission.State == ShipState.Patrolling)
-        {
-            if (mission.StopRequested && mission.Type != GameUnitType.FighterUnit)
+            else if (mission.State == ShipState.Searching)
             {
-                mission.State = ShipState.Idle;
-                mission.StopRequested = false;
-                return;
-            }
-            mission.StopRequested = false; // Fighters ignore stop and keep patrolling
+                if (mission.Type == GameUnitType.ProbeUnit) await DiscoverPlanet(id);
+                else if (mission.Type == GameUnitType.WormholeScoutUnit) await DiscoverWormhole(id);
 
-            var randomPos = GetRandomWaypoint(150, 300);
-            mission.CurrentTarget = randomPos;
-            if (sector.Id == _gameState.CurrentSectorId)
-            {
-                var shipPos = await _babylon.GetModelPosition(id) ?? mission.Position;
-                await _babylon.MoveModel(id, randomPos, GetMoveDuration(shipPos, randomPos, 30.0f));
+                if (mission.StopRequested || mission.Type == GameUnitType.FighterUnit)
+                {
+                    mission.State = ShipState.Patrolling;
+                    mission.StopRequested = false;
+                    _ = Task.Run(async () => { await Task.Delay(200); await HandleMoveComplete(id); });
+                }
+                else
+                {
+                    mission.State = ShipState.Idle;
+                }
             }
-        }
-        else if (mission.State == ShipState.Searching)
-        {
-            if (mission.StopRequested && mission.Type != GameUnitType.FighterUnit)
+            else if (mission.State == ShipState.Patrolling)
             {
-                mission.State = ShipState.Idle;
+                if (mission.StopRequested && mission.Type != GameUnitType.FighterUnit)
+                {
+                    mission.State = ShipState.Idle;
+                    mission.StopRequested = false;
+                    return;
+                }
+
+                if (mission.Type != GameUnitType.FighterUnit && sector.NPCShips.Any())
+                {
+                    _ = Task.Run(async () => {
+                        await Task.Delay(5000);
+                        await HandleMoveComplete(id);
+                    });
+                    return;
+                }
+
                 mission.StopRequested = false;
-                return;
+                var randomPos = GetRandomWaypoint(150, 300);
+                mission.CurrentTarget = randomPos;
+                if (sector.Id == _gameState.CurrentSectorId)
+                {
+                    // JS AI handles Patrolling/Attacking autonomously for Fighters/Scouts.
+                    // For others (Miners, Haulers), we use C# movement to keep them active.
+                    if (mission.Type != GameUnitType.FighterUnit && mission.Type != GameUnitType.ScoutUnit)
+                    {
+                        var shipPos = await _babylon.GetModelPosition(id) ?? mission.Position;
+                        await _babylon.MoveModel(id, randomPos, GetMoveDuration(shipPos, randomPos, 20.0f));
+                    }
+                }
+                else
+                {
+                    var duration = GetMoveDuration(mission.Position, randomPos, 30.0f);
+                    _ = Task.Run(async () => {
+                        await Task.Delay((int)(duration * 1000));
+                        mission.Position = randomPos;
+                        await HandleMoveComplete(id);
+                    });
+                }
             }
-            if (mission.Type == GameUnitType.FighterUnit)
-            {
-                mission.State = ShipState.Patrolling;
-                _ = Task.Run(async () => { await Task.Delay(200); await HandleMoveComplete(id); });
-                return;
-            }
-            // Probes/Scouts keep searching if not stopped
-            if (mission.Type == GameUnitType.ProbeUnit) await StartProbeSearch(id);
-            else if (mission.Type == GameUnitType.WormholeScoutUnit) await StartWormholeScout(id);
-        }
-        else if (mission.State == ShipState.MovingToAsteroid && mission.Type == GameUnitType.ColonyShipUnit)
-        {
-            mission.State = ShipState.Colonizing;
-            _ = HandleColonizationSequence(id, mission.AsteroidId);
-        }
-        else if (mission.State == ShipState.MovingToAsteroid && mission.Type == GameUnitType.StellarGatekeeperUnit)
-        {
-            if (sector.Id == _gameState.CurrentSectorId)
-            {
-                await JumpToNewSector(mission.AsteroidId);
-                sector.ActiveMissions.Remove(id);
-                sector.Fleet.Remove(id); // Ensure complete removal
-                await _babylon.DestroyModel(id, "collapse");
-            }
-        }
+        });
     }
 
     private async Task HandleMiningSequence(string id, string asteroidId)
     {
-        var mission = _gameState.FindMission(id, out var sector);
-        if (mission == null || sector == null) return;
+        if (!_activeSequences.Add(id + "_Mining")) return;
+        try {
+            var mission = _gameState.FindMission(id, out var sector);
+            if (mission == null || sector == null) return;
 
-        while (mission.State == ShipState.Mining && mission.Cargo < mission.MaxCargo)
-        {
-            await Task.Delay(1000);
-            mission.Cargo = Math.Min(mission.MaxCargo, mission.Cargo + 10);
-            
-            var asteroid = sector.Asteroids.Find(a => a.Id == asteroidId);
-            if (asteroid != null) asteroid.Capacity = Math.Max(0, asteroid.Capacity - 10);
+            while (mission.State == ShipState.Mining && mission.Cargo < mission.MaxCargo)
+            {
+                await Task.Delay(1000);
+                mission.Cargo = Math.Min(mission.MaxCargo, mission.Cargo + 10);
+                
+                var asteroid = sector.Asteroids.Find(a => a.Id == asteroidId);
+                if (asteroid != null) asteroid.Capacity = Math.Max(0, asteroid.Capacity - 10);
 
-            _gameState.Notify();
-        }
+                _gameState.Notify();
+            }
 
-        if (mission.State == ShipState.Mining)
-        {
-            await ReturnToStation(id);
+            if (mission.State == ShipState.Mining)
+            {
+                await ReturnToStation(id);
+            }
+        } finally {
+            _activeSequences.Remove(id + "_Mining");
         }
     }
 
     private async Task HandleUnloadingSequence(string id)
     {
-        var mission = _gameState.FindMission(id, out var sector);
-        if (mission == null || sector == null) return;
+        if (!_activeSequences.Add(id + "_Unloading")) return;
+        try {
+            var mission = _gameState.FindMission(id, out var sector);
+            if (mission == null || sector == null) return;
 
-        for (int i = 0; i < 5; i++)
-        {
-            await Task.Delay(1000);
-            if (mission.State != ShipState.Unloading) return; 
-            _gameState.Notify();
+            for (int i = 0; i < 5; i++)
+            {
+                await Task.Delay(1000);
+                if (mission.State != ShipState.Unloading) return; 
+                _gameState.Notify();
+            }
+
+            sector.Ore += mission.Cargo;
+            mission.Cargo = 0;
+
+            if (mission.StopRequested)
+            {
+                mission.State = ShipState.Idle;
+                mission.StopRequested = false;
+            }
+            else if (mission.Health < mission.MaxHealth)
+            {
+                mission.State = ShipState.Repairing;
+                if (sector.Id == _gameState.CurrentSectorId) _ = _babylon.UpdateModelMetadata(id, "state", "Repairing");
+                _ = HandleRepairSequence(id);
+            }
+            else
+            {
+                if (sector.NPCShips.Any())
+                {
+                    _ = Task.Run(async () => {
+                        await Task.Delay(5000);
+                        await HandleUnloadingSequence(id);
+                    });
+                    return;
+                }
+
+                await StartMiningMission(id, mission.AsteroidId, mission.AsteroidPosition);
+            }
+        } finally {
+            _activeSequences.Remove(id + "_Unloading");
         }
+    }
 
-        sector.Ore += mission.Cargo;
-        mission.Cargo = 0;
+    private async Task HandleRepairSequence(string id)
+    {
+        if (!_activeSequences.Add(id + "_Repairing")) return;
+        try {
+            var mission = _gameState.FindMission(id, out var sector);
+            if (mission == null || sector == null) return;
 
-        if (mission.StopRequested)
-        {
-            mission.State = ShipState.Idle;
-            mission.StopRequested = false;
-        }
-        else
-        {
-            await StartMiningMission(id, mission.AsteroidId, mission.AsteroidPosition);
+            float hpToRepair = mission.MaxHealth - mission.Health;
+            int oreCost = (int)Math.Ceiling(hpToRepair);
+            int repairSeconds = (int)Math.Ceiling(hpToRepair / 10.0f);
+
+            if (sector.Ore < oreCost)
+            {
+                mission.State = ShipState.Idle;
+                return;
+            }
+
+            _gameState.TryDeductResources(oreCost, 0, 0, 0);
+
+            for (int i = 0; i < repairSeconds; i++)
+            {
+                await Task.Delay(1000);
+                if (mission.State != ShipState.Repairing) return;
+                mission.Health = Math.Min(mission.MaxHealth, mission.Health + 10.0f);
+                if (sector.Id == _gameState.CurrentSectorId) 
+                    await _babylon.UpdateCombatUI(id, mission.Health, mission.MaxHealth);
+                _gameState.Notify();
+            }
+
+            mission.Health = mission.MaxHealth;
+            mission.State = ShipState.Patrolling;
+            if (sector.Id == _gameState.CurrentSectorId) _ = _babylon.UpdateModelMetadata(id, "state", "Patrolling");
+            
+            await Task.Delay(200);
+            await HandleMoveComplete(id);
+        } finally {
+            _activeSequences.Remove(id + "_Repairing");
         }
     }
 
@@ -295,7 +393,16 @@ public class MissionService
         if (mission == null || sector == null) return;
 
         mission.State = ShipState.ReturningToStation;
+        if (sector.Id == _gameState.CurrentSectorId) _ = _babylon.UpdateModelMetadata(id, "state", "ReturningToStation");
         var stationPos = sector.StationPositions.TryGetValue(mission.ParentStationId, out var p) ? p : new float[] { 0, 0, 0 };
+        
+        // DOCKING OFFSET for Ark Station to prevent stopping "short" at (0,0,0)
+        if (mission.ParentStationId == "Ark_Colonization_Station")
+        {
+            // Targeting Bay 0 primarily for return
+            stationPos = new float[] { stationPos[0], stationPos[1] - 10, stationPos[2] + 45 };
+        }
+
         mission.CurrentTarget = stationPos;
         if (sector.Id == _gameState.CurrentSectorId)
         {
@@ -331,16 +438,15 @@ public class MissionService
         if (mission == null || sector == null) return;
 
         var rnd = new Random();
-        string id = $"Planet_{Guid.NewGuid().ToString()[..8]}";
+        string id = $"Planet_{Guid.NewGuid().ToString().Substring(0, 8)}";
         float angle = (float)(rnd.NextDouble() * Math.PI * 2);
         float[] pos = { (float)Math.Cos(angle) * 2500.0f, 0, (float)Math.Sin(angle) * 2500.0f };
         var planet = new PlanetData { Id = id, Name = "Aethelgard Prime", Position = pos, IsDiscovered = true, MonolithsSeeded = true };
         
-        // Seed Monoliths around the base location
         for (int i = 0; i < 3; i++)
         {
             float mAngle = (float)(rnd.NextDouble() * Math.PI * 2);
-            float mDist = 200 + (float)(rnd.NextDouble() * 400); // 200-600 units away
+            float mDist = 200 + (float)(rnd.NextDouble() * 400); 
             planet.Monoliths.Add(new MonolithData 
             { 
                 Id = $"Monolith_{id}_{i}",
@@ -368,9 +474,9 @@ public class MissionService
         if (mission == null || sector == null) return;
 
         var rnd = new Random();
-        string id = $"Wormhole_{Guid.NewGuid().ToString()[..8]}";
+        string id = $"Wormhole_{Guid.NewGuid().ToString().Substring(0, 8)}";
         float angle = (float)(rnd.NextDouble() * Math.PI * 2);
-        float dist = 4000.0f + (float)(rnd.NextDouble() * 1000.0f); // 4k-5k units out
+        float dist = 4000.0f + (float)(rnd.NextDouble() * 1000.0f); 
         float[] pos = { (float)Math.Cos(angle) * dist, 0, (float)Math.Sin(angle) * dist };
         
         var wormhole = new WormholeData 
@@ -378,13 +484,13 @@ public class MissionService
             Id = id, 
             Position = pos, 
             IsDiscovered = true,
-            TargetSectorId = $"Sector_{Guid.NewGuid().ToString()[..4]}"
+            TargetSectorId = $"Sector_{Guid.NewGuid().ToString().Substring(0, 4)}"
         };
 
         if (sector.Wormholes.Any(w => w.Id == id)) return;
         sector.Wormholes.Add(wormhole);
         sector.ActiveMissions.Remove(scoutId);
-        sector.Fleet.Remove(scoutId); // Ensure full cleanup
+        sector.Fleet.Remove(scoutId);
         
         if (sector.Id == _gameState.CurrentSectorId)
         {
@@ -403,23 +509,22 @@ public class MissionService
 
         string targetId = wormhole.TargetSectorId;
         
-        // If sector doesn't exist, it will be initialized by the accessor
         if (!_gameState.Sectors.Any(s => s.Id == targetId))
         {
             var newSector = new SectorData 
             { 
                 Id = targetId, 
                 Name = $"Deep Space {targetId.Split('_').Last()}",
-                ThreatLevel = 0.8f, // Hostile expansion sector
+                ThreatLevel = 0.8f,
                 Ore = 1000,
                 Wheat = 0, Potato = 0, Corn = 0
             };
 
-            // Spawn Rogue Faction
             var faction = new NPCFactionData { Id = "Alien_Rogue", Name = "The Void Remnant", Hostility = 0.9f };
             newSector.Factions.Add(faction);
 
-            // Spawn 3 alien fighters around a point
+            // Metadata for alien ships to identify them as Fighters/NPCs
+            var meta = new Dictionary<string, object> { { "unitType", "FighterUnit" }, { "type", "NPC" }, { "faction", "Alien_Rogue" } };
             for (int i = 0; i < 3; i++)
             {
                 string shipId = $"Alien_Ship_{targetId}_{i}";
@@ -429,16 +534,23 @@ public class MissionService
                     FactionId = faction.Id, 
                     Position = new float[] { 200, 0, 200 + (i * 100) }, 
                     State = ShipState.Patrolling,
-                    Health = 200, // Alien fighters are tougher
+                    Health = 200,
                     MaxHealth = 200,
-                    Firepower = 8, // But human interceptors hit harder
+                    Firepower = 8,
                     Armor = 5
                 };
                 newSector.NPCShips[shipId] = ship;
                 faction.Ships.Add(shipId);
+                
+                // Spawn visually if this becomes the active sector (which it does at end of method)
+                // But since we switch currentSectorId at the end, we might need to handle spawning there or rely on valid scene updates.
+                // However, the original code didn't spawn them here? 
+                // Wait, JumpToNewSector switches _gameState.CurrentSectorId = targetId; at the end.
+                // If we want them to appear, we should probably spawn them or rely on a scene refresh.
+                // The original code didn't have spawning logic here, it just added to data. 
+                // Assuming the UI or Scene refresher handles "OnSectorChanged".
             }
 
-            // Spawn random asteroids for the new sector
             var rnd = new Random();
             for (int i = 0; i < 20; i++)
             {
@@ -450,7 +562,7 @@ public class MissionService
                 
                 newSector.Asteroids.Add(new AsteroidData
                 {
-                    Id = $"Asteroid_{Guid.NewGuid().ToString()[..4]}",
+                    Id = $"Asteroid_{Guid.NewGuid().ToString().Substring(0, 4)}",
                     Position = new float[] { x, y, z },
                     Rotation = new float[] { (float)rnd.NextDouble() * 360, (float)rnd.NextDouble() * 360, (float)rnd.NextDouble() * 360 },
                     Scale = 5.0f + (float)rnd.NextDouble() * 15.0f,
@@ -458,7 +570,6 @@ public class MissionService
                 });
             }
 
-            // Establish initial arrival station for the player
             string arrivalStationId = $"Station_Outpost_{targetId.Split('_')[^1]}";
             newSector.Stations.Add(arrivalStationId);
             newSector.StationPositions[arrivalStationId] = new float[] { 0, 0, 0 };
@@ -466,9 +577,7 @@ public class MissionService
             _gameState.Sectors.Add(newSector);
         }
 
-        // Change sector
         _gameState.CurrentSectorId = targetId;
-
         _gameState.Notify();
     }
 
@@ -492,7 +601,6 @@ public class MissionService
         {
             foreach (var mission in sector.ActiveMissions.Values)
             {
-                // Stagger starts to prevent bridge flooding
                 await Task.Delay(50);
                 
                 if (mission.State == ShipState.Mining)
@@ -501,7 +609,9 @@ public class MissionService
                     _ = HandleUnloadingSequence(mission.ShipId);
                 else if (mission.State == ShipState.Colonizing)
                     _ = HandleColonizationSequence(mission.ShipId, mission.AsteroidId);
-                else if (mission.State == ShipState.Patrolling || mission.State == ShipState.Searching || mission.State == ShipState.MovingToAsteroid)
+                else if (mission.State == ShipState.Repairing)
+                    _ = HandleRepairSequence(mission.ShipId);
+                else if (mission.State == ShipState.Patrolling || mission.State == ShipState.Searching || mission.State == ShipState.MovingToAsteroid || mission.State == ShipState.ReturningToStation)
                     _ = ResumeShipMission(mission.ShipId);
             }
         }
@@ -521,13 +631,18 @@ public class MissionService
             if (mission.Type == GameUnitType.ProbeUnit) await StartProbeSearch(id);
             else if (mission.Type == GameUnitType.WormholeScoutUnit) await StartWormholeScout(id);
         }
-        else if (mission.State == ShipState.MovingToAsteroid)
+        else if (mission.State == ShipState.MovingToAsteroid || mission.State == ShipState.ReturningToStation)
         {
             if (sector.Id == _gameState.CurrentSectorId)
             {
                 var shipPos = await _babylon.GetModelPosition(id) ?? mission.Position;
                 var targetPos = mission.CurrentTarget ?? mission.Position;
-                await _babylon.MoveModel(id, targetPos, GetMoveDuration(shipPos, targetPos, 25.0f));
+                float speed = mission.Type == GameUnitType.ScoutUnit || mission.Type == GameUnitType.FighterUnit ? 40.0f : 20.0f;
+                await _babylon.MoveModel(id, targetPos, GetMoveDuration(shipPos, targetPos, speed));
+            }
+            else
+            {
+                 await HandleMoveComplete(id);
             }
         }
     }
