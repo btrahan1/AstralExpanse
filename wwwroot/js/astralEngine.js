@@ -536,10 +536,10 @@ window.AstralEngine = {
         }
 
         // Immediate Registration for Always-Moving Doctrine
-        if (modelData.Type === "NPC" || modelData.Type === "Ship") {
-            const isFighter = modelData.unitType === "FighterUnit" || modelData.Type === "NPC";
+        if (root.metadata.type === "NPC" || root.metadata.type === "Ship") {
+            const isFighter = root.metadata.unitType === "FighterUnit" || root.metadata.type === "NPC";
             if (isFighter) {
-                this.npcShips[finalId] = { root: root, state: "Patrolling", waitTime: 0, type: modelData.Type, spawnPos: root.position.clone() };
+                this.npcShips[finalId] = { root: root, state: "Patrolling", waitTime: 0, type: root.metadata.type, spawnPos: root.position.clone() };
             }
         }
 
@@ -1154,7 +1154,7 @@ window.AstralEngine = {
                 } else {
                     // Move towards target
                     const diff = ship.targetPos.subtract(ship.root.position);
-                    const moveStep = diff.normalize().scale(30 * dt); // Dynamic Patrol Speed
+                    const moveStep = diff.normalize().scale(30 * dt); // Standard Patrol Speed
                     ship.root.position.addInPlace(moveStep);
 
                     // Look toward target
@@ -1184,7 +1184,9 @@ window.AstralEngine = {
 
                     // Aggressive Dive: Close to 100 units at high speed
                     if (dist > 100) {
-                        ship.root.position.addInPlace(diff.normalize().scale(45 * dt)); // 45 units/sec Intercept speed
+                        const moveVec = diff.normalize().scale(45 * dt);
+                        ship.root.position.addInPlace(moveVec);
+                        // console.log(`NPC ${id} DIVE: Dist=${dist.toFixed(1)} Speed=${moveVec.length().toFixed(2)}`);
                     } else {
                         // Point blank: slow down but keep orbiting/passing
                         ship.root.position.addInPlace(diff.normalize().scale(10 * dt));

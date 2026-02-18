@@ -532,7 +532,11 @@ public class MissionService
                 { 
                     Id = shipId, 
                     FactionId = faction.Id, 
-                    Position = new float[] { 200, 0, 200 + (i * 100) }, 
+                    Position = new float[] { 
+                        (float)(2500 * Math.Cos(i * 2.0)), 
+                        (float)((new Random().NextDouble() - 0.5) * 200), 
+                        (float)(2500 * Math.Sin(i * 2.0)) 
+                    }, 
                     State = ShipState.Patrolling,
                     Health = 200,
                     MaxHealth = 200,

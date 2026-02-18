@@ -134,7 +134,7 @@ public class CombatService
                 // NPC Respawn Logic (If it's a hostile sector and empty)
                 if (sector.ThreatLevel > 0.5f && !sector.NPCShips.Any())
                 {
-                    if ((DateTime.Now - _lastRespawnTime).TotalSeconds > 60)
+                    if ((DateTime.Now - _lastRespawnTime).TotalSeconds > 30)
                     {
                         _lastRespawnTime = DateTime.Now;
                         Console.WriteLine($"[CombatService] Respawning NPC wave in {sector.Name}...");
@@ -162,7 +162,11 @@ public class CombatService
             { 
                 Id = shipId, 
                 FactionId = faction.Id, 
-                Position = new float[] { 500, 0, 500 + (i * 100) }, 
+                Position = new float[] { 
+                    (float)(2500 * Math.Cos(i * 2.0)), 
+                    (float)((new Random().NextDouble() - 0.5) * 200), 
+                    (float)(2500 * Math.Sin(i * 2.0)) 
+                }, 
                 State = ShipState.Patrolling,
                 Health = 200,
                 MaxHealth = 200,
@@ -175,7 +179,8 @@ public class CombatService
             if (sector.Id == _gameState.CurrentSectorId)
             {
                 var npcJson = await _http.GetStringAsync("assets/alien_fighter.json");
-                await _babylon.LoadModel(npcJson, ship.Position, scale: 3.0f, id: shipId);
+                var meta = new Dictionary<string, object> { { "unitType", "FighterUnit" }, { "type", "NPC" }, { "faction", faction.Id } };
+                await _babylon.LoadModel(npcJson, ship.Position, scale: 3.0f, id: shipId, metadata: meta);
             }
         }
     }
