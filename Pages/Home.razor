@@ -188,10 +188,36 @@
 
         if (_lastObservedSectorId != GameState.CurrentSectorId)
         {
+            var oldSectorId = _lastObservedSectorId;
             _lastObservedSectorId = GameState.CurrentSectorId;
+            
             await InvokeAsync(async () => {
+                _isSceneInitializing = true;
+                
+                // 1. Sync current visual positions to state before we clear them
+                await SyncPositionsToState();
+                
+                // 2. Clear visual scene
                 await BabylonService.ClearScene();
+                
+                // 3. For the sector we just LEFT, ensure missions continue in background
+                if (!string.IsNullOrEmpty(oldSectorId))
+                {
+                    var oldSector = GameState.Sectors.FirstOrDefault(s => s.Id == oldSectorId);
+                    if (oldSector != null)
+                    {
+                        foreach (var m in oldSector.ActiveMissions.Values)
+                        {
+                            if (m.State == ShipState.MovingToAsteroid || m.State == ShipState.ReturningToStation || m.State == ShipState.Patrolling)
+                                await Missions.ResumeShipMission(m.ShipId);
+                        }
+                    }
+                }
+
+                // 4. Initialize NEW visual scene
                 await Initialize3DScene(isLoad: true);
+                
+                _isSceneInitializing = false;
                 StateHasChanged();
             });
         }
@@ -301,7 +327,7 @@
 
     private async Task Initialize3DScene(bool isLoad = false)
     {
-        if (_isSceneInitializing) return;
+        if (_isSceneInitializing && !isLoad) return;
         _isSceneInitializing = true;
 
         try 
@@ -360,7 +386,9 @@
                     
                     var meta = new Dictionary<string, object> { { "unitType", mission.Type.ToString() }, { "state", mission.State.ToString() }, { "faction", "Player" } };
                     await BabylonService.LoadModel(json, mission.Position, id: mission.ShipId, metadata: meta);
-                    // Movement will be triggered by RestartMissions() or JS autonomous logic
+                    
+                    // Resume mission visual animation/logic for the newly foregrounded sector
+                    _ = Missions.ResumeShipMission(mission.ShipId);
                 }
             }
             
@@ -529,14 +557,13 @@
         if (pos != null) { await BabylonService.SetCameraTarget(pos[0], pos[1], pos[2]); _radar?.CenterOn(pos[0], pos[2]); }
     }
 
-    private void HandleStopMining(string id)
+    private async void HandleStopMining(string id)
     {
         if (GameState.ActiveMissions.TryGetValue(id, out var m)) 
         { 
-            m.StopRequested = true; 
-            if (m.Type != GameUnitType.FighterUnit && m.State != ShipState.Mining && m.State != ShipState.MovingToAsteroid) 
-                m.State = ShipState.Idle; 
-            StateHasChanged(); 
+            m.State = ShipState.Idle;
+            await BabylonService.StopModel(id);
+            await InvokeAsync(StateHasChanged); 
         }
     }
 
