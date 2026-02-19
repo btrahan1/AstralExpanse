@@ -33,14 +33,17 @@ public class FarmingService
         {
             await Task.Delay(1000); // Check every second
 
-            foreach (var planet in _gameState.Planets.Where(p => p.IsColonized))
+            foreach (var sector in _gameState.Sectors)
             {
-                var fields = planet.Buildings.Where(b => b.Type.EndsWith("Field")).ToList();
-                if (!fields.Any()) continue;
-
-                foreach (var bot in planet.Bots)
+                foreach (var planet in sector.Planets.Where(p => p.IsColonized))
                 {
-                    await UpdateBot(bot, fields, planet.Id);
+                    var fields = planet.Buildings.Where(b => b.Type.EndsWith("Field")).ToList();
+                    if (!fields.Any()) continue;
+
+                    foreach (var bot in planet.Bots)
+                    {
+                        await UpdateBot(bot, fields, planet.Id);
+                    }
                 }
             }
             
@@ -90,7 +93,7 @@ public class FarmingService
         bot.IsTraveling = false;
 
         // 3. Phase Logic (15 seconds per phase)
-        bot.PhaseProgress += 1.0f / 15.0f;
+        bot.PhaseProgress += 1.0f / 5.0f;
         if (bot.PhaseProgress >= 1.0f)
         {
             bot.PhaseProgress = 0;
@@ -121,9 +124,9 @@ public class FarmingService
     {
         switch (fieldType)
         {
-            case "WheatField": _gameState.AddWheat(100); break;
-            case "PotatoField": _gameState.AddPotato(100); break;
-            case "CornField": _gameState.AddCorn(100); break;
+            case "WheatField": _gameState.AddWheat(1000); break;
+            case "PotatoField": _gameState.AddPotato(1000); break;
+            case "CornField": _gameState.AddCorn(1000); break;
         }
     }
 

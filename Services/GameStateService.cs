@@ -16,7 +16,6 @@ public class ShipMission
     public float[] Position { get; set; } = new float[3]; // Current world position
     public float[] Rotation { get; set; } = new float[3]; // Current world rotation
     public ShipState State { get; set; } = ShipState.Idle;
-    public bool StopRequested { get; set; } = false;
     public float[] CurrentTarget { get; set; } = new float[3];
     public string? TowedEntityId { get; set; }
     public int Cargo { get; set; } = 0;
@@ -197,7 +196,7 @@ public class SectorData
 
 public class GameStateService
 {
-    public const int VictoryPopulationTarget = 5000;
+    public const int VictoryPopulationTarget = 2000;
     public string CurrentSectorId { get; set; } = "Home_Sector";
     public List<SectorData> Sectors { get; set; } = new List<SectorData>();
 
@@ -444,7 +443,6 @@ public class GameStateService
                 {
                     mission.State = ShipState.Patrolling;
                     mission.CombatTargetId = null;
-                    mission.StopRequested = false;
                 }
             }
         }
@@ -464,6 +462,20 @@ public class GameStateService
             {
                 sector = s;
                 return mission;
+            }
+        }
+        sector = null;
+        return null;
+    }
+        public PlanetData? FindPlanet(string planetId, out SectorData? sector)
+    {
+        foreach (var s in Sectors)
+        {
+            var planet = s.Planets.FirstOrDefault(p => p.Id == planetId);
+            if (planet != null)
+            {
+                sector = s;
+                return planet;
             }
         }
         sector = null;

@@ -14,7 +14,10 @@
         
         <div class="resource-panel">
             <div class="res-item">ORE: @GameState.Ore</div>
-            <div class="res-item pop">POP: @(GameState.Planets.Find(p => p.Id == PlanetId)?.Population ?? 0)</div>
+            @{
+                var planet = GameState.FindPlanet(PlanetId, out _);
+                <div class="res-item pop">POP: @(planet?.Population ?? 0)</div>
+            }
             <div class="res-item wheat">WHEAT: @GameState.Wheat</div>
             <div class="res-item potato">POTATO: @GameState.Potato</div>
             <div class="res-item corn">CORN: @GameState.Corn</div>
@@ -63,8 +66,8 @@
                 </div>
 
                 @{
-                    var planet = GameState.Planets.Find(p => p.Id == PlanetId);
-                    bool hasFarmhouse = planet?.Buildings.Any(b => b.Type == "FarmHouse") ?? false;
+                    var currentPlanet = GameState.FindPlanet(PlanetId, out _);
+                    bool hasFarmhouse = currentPlanet?.Buildings.Any(b => b.Type == "FarmHouse") ?? false;
                 }
                 <div class="building-item">
                     <div class="info">
@@ -76,11 +79,11 @@
                     </button>
                 </div>
 
-                @if (planet != null && planet.Bots.Any())
+                @if (currentPlanet != null && currentPlanet.Bots.Any())
                 {
                     <div class="section-header">BOT STATUS</div>
                     <div class="bot-status-list">
-                        @foreach (var bot in planet.Bots)
+                        @foreach (var bot in currentPlanet.Bots)
                         {
                             <div class="bot-item">
                                 <div class="bot-info">
@@ -103,7 +106,7 @@
 
                 <div class="section-header">ROVER OPERATIONS</div>
 
-                @if (planet?.Rover == null)
+                @if (currentPlanet?.Rover == null)
                 {
                     <div class="building-item" @onclick='() => Colony.BuildRover(PlanetId)'>
                         <div class="building-info">
@@ -188,7 +191,8 @@
     private async Task Locate(string botId)
     {
         await Babylon.SetCameraTarget(0, 0, 0); // Temporary reset if needed
-        var pos = GameState.Planets.Find(p => p.Id == PlanetId)?.Bots.Find(b => b.Id == botId)?.Position;
+        var currentPlanet = GameState.FindPlanet(PlanetId, out _);
+        var pos = currentPlanet?.Bots.Find(b => b.Id == botId)?.Position;
         if (pos != null)
         {
             await Babylon.SetCameraTarget(pos[0], pos[1] + 10, pos[2]);

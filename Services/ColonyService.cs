@@ -34,7 +34,7 @@ public class ColonyService
 
         if (type == "Habitat")
         {
-            if (_gameState.Ore < 1000 || _gameState.Wheat < 1000 || _gameState.Potato < 1000 || _gameState.Corn < 1000)
+            if (_gameState.Ore < 100 || _gameState.Wheat < 100 || _gameState.Potato < 100 || _gameState.Corn < 100)
                 return false;
         }
         else if (_gameState.Ore < cost) return false;
@@ -54,9 +54,9 @@ public class ColonyService
                 if (type == "Habitat")
                 {
                     // For Habitat, we deduct all resources
-                    if (_gameState.TryDeductResources(1000, 1000, 1000, 1000))
+                    if (_gameState.TryDeductResources(100, 100, 100, 100))
                     {
-                        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+                        var planet = _gameState.FindPlanet(planetId, out var sector);
                         if (planet != null)
                         {
                             var projectId = $"Build_{Guid.NewGuid().ToString()[..4]}";
@@ -93,7 +93,7 @@ public class ColonyService
                                     planet.ConstructionProjects.Remove(project);
                                     await _babylon.RemoveConstructionProgress(project.Id);
 
-                                    if (_gameState.TryBuildColonyBuilding(planetId, type, 0, position, populationBoost: 100))
+                                    if (_gameState.TryBuildColonyBuilding(planetId, type, 0, position, populationBoost: 1000))
                                     {
                                         var buildingId = $"ColonyBuilding_{planetId}_{type}_{Guid.NewGuid().ToString()[..4]}";
                                         await _babylon.LoadModel(json, position, id: buildingId);
@@ -144,7 +144,7 @@ public class ColonyService
     {
         if (_gameState.Ore < 300) return false;
 
-        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        var planet = _gameState.FindPlanet(planetId, out var sector);
         if (planet == null) return false;
 
         // Find a FarmHouse to act as the home base
@@ -178,7 +178,7 @@ public class ColonyService
     {
         if (_gameState.Ore < 1200) return false;
 
-        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        var planet = _gameState.FindPlanet(planetId, out var sector);
         if (planet == null || planet.Rover != null) return false;
 
         _gameState.AddOre(-1200);
@@ -213,7 +213,7 @@ public class ColonyService
     {
         if (_gameState.Ore < 300) return false;
 
-        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        var planet = _gameState.FindPlanet(planetId, out var sector);
         if (planet == null) return false;
 
         var monolith = planet.Monoliths.Find(m => m.Id == monolithId);
@@ -251,7 +251,7 @@ public class ColonyService
 
     public async Task LoadColonyBuildings(string planetId)
     {
-        var planet = _gameState.Planets.Find(p => p.Id == planetId);
+        var planet = _gameState.FindPlanet(planetId, out var sector);
         if (planet == null) return;
 
         // Retroactive Seeding for existing planets
